@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --font-display: "Archivo Black", "Arial Black", sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: var(--font-sans), system-ui, sans-serif;
+  --font-body: var(--font-sans), system-ui, sans-serif;
+  --font-mono: var(--font-sans), system-ui, sans-serif;
 }
 
 body {
-  background-color: #EEECE4;
-  color: #14171C;
+  background-color: #FFFFFF;
+  color: #1A1A1A;
   font-family: var(--font-body);
 }
 
@@ -43,14 +43,14 @@ body {
 }
 
 .ticket {
-  background: #F7F6F1;
-  border: 1px solid rgba(20, 23, 28, 0.12);
+  background: #FFFFFF;
+  border: 1px solid rgba(26, 26, 26, 0.14);
 }
 
 .ticket-perf {
   background-image: radial-gradient(
     circle,
-    #EEECE4 3px,
+    #FFFFFF 3px,
     transparent 3.5px
   );
   background-size: 14px 14px;
@@ -58,14 +58,14 @@ body {
 }
 
 ::selection {
-  background: #1D4E89;
-  color: #F7F6F1;
+  background: #C8102E;
+  color: #FFFFFF;
 }
 
 .press-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .press-scroll::-webkit-scrollbar-thumb {
-  background: rgba(20, 23, 28, 0.25);
+  background: rgba(26, 26, 26, 0.25);
   border-radius: 4px;
 }

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import ArtworkTicket from "@/components/ArtworkTicket";
+import ProductActionTabs from "@/components/ProductActionTabs";
 import { Artwork } from "@/lib/types";
 
 export default async function ProdukPage() {
@@ -27,37 +27,10 @@ export default async function ProdukPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-amber">
-          Antrean Review ({queue?.length ?? 0})
-        </p>
-        {!queue?.length && (
-          <p className="ticket-perf border border-dashed border-ink/20 p-8 text-center font-mono text-xs text-inkfaint">
-            Tidak ada artwork yang menunggu review.
-          </p>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(queue as Artwork[] | null)?.map((artwork) => (
-            <ArtworkTicket
-              key={artwork.id}
-              artwork={artwork}
-              href={`/produk/${artwork.id}`}
-              actionLabel="Review"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-inkfaint">
-          Riwayat Terbaru
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(history as Artwork[] | null)?.map((artwork) => (
-            <ArtworkTicket key={artwork.id} artwork={artwork} />
-          ))}
-        </div>
-      </div>
+      <ProductActionTabs
+        queue={(queue as Artwork[] | null) ?? []}
+        history={(history as Artwork[] | null) ?? []}
+      />
     </div>
   );
 }

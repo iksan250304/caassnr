@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import UploadArtworkForm from "@/components/UploadArtworkForm";
-import DesignArtworkItem from "@/components/DesignArtworkItem";
+import DesignActionTabs from "@/components/DesignActionTabs";
 import { Artwork, ApprovalLog } from "@/lib/types";
 
 export default async function DesignPage() {
@@ -32,6 +31,11 @@ export default async function DesignPage() {
     }
   }
 
+  const history = (artworks as Artwork[] | null) ?? [];
+  const revisionQueue = history
+    .filter((a) => a.status === "rejected_product")
+    .map((a) => ({ artwork: a, feedback: feedbackMap[a.id] }));
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -41,25 +45,11 @@ export default async function DesignPage() {
         </p>
       </div>
 
-      <UploadArtworkForm mode="create" />
-
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-inkfaint">
-          Riwayat Pengajuan ({artworks?.length ?? 0})
-        </p>
-        {!artworks?.length && (
-          <p className="ticket-perf border border-dashed border-ink/20 p-8 text-center font-mono text-xs text-inkfaint">
-            Belum ada artwork yang diajukan.
-          </p>
-        )}
-        {(artworks as Artwork[] | null)?.map((artwork) => (
-          <DesignArtworkItem
-            key={artwork.id}
-            artwork={artwork}
-            latestFeedback={feedbackMap[artwork.id]}
-          />
-        ))}
-      </div>
+      <DesignActionTabs
+        revisionQueue={revisionQueue}
+        history={history}
+        feedbackMap={feedbackMap}
+      />
     </div>
   );
 }

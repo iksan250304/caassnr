@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { Archivo_Black, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const archivoBlack = Archivo_Black({
+const inter = Inter({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-display",
-});
-const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-mono",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
@@ -25,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={`${archivoBlack.variable} ${inter.variable} ${plexMono.variable}`}>
+    <html lang="id" className={inter.variable}>
       <body className="bg-paper text-ink">{children}</body>
     </html>
   );

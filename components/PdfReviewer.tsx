@@ -13,7 +13,10 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.js",
+  import.meta.url
+).toString();
 
 export interface PdfReviewerHandle {
   /**
@@ -21,12 +24,21 @@ export interface PdfReviewerHandle {
    * burns a signature stamp box onto the last page. Returns the resulting
    * PDF bytes ready to upload.
    */
-  exportStampedPdf: (stamp?: {
-    label: string;
-    name: string;
-    role: string;
-    dateText: string;
-  }) => Promise<Uint8Array>;
+  exportStampedPdf: (
+    stamp?: {
+      label: string;
+      name: string;
+      role: string;
+      dateText: string;
+      signatureImage?: { imageBytes: ArrayBuffer; imageType: "png" | "jpg" };
+    },
+    designSignoff?: {
+      imageBytes: ArrayBuffer;
+      imageType: "png" | "jpg";
+      name: string;
+      dateText: string;
+    }
+  ) => Promise<Uint8Array>;
   hasMarkup: () => boolean;
 }
 
@@ -121,7 +133,7 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
 
     useImperativeHandle(ref, () => ({
       hasMarkup: () => Object.keys(pageDrawings.current).length > 0,
-      exportStampedPdf: async (stamp) => {
+      exportStampedPdf: async (stamp, designSignoff) => {
         saveCurrentCanvas();
         const original = await fetch(fileUrl).then((r) => r.arrayBuffer());
         const pdfDoc = await PDFDocument.load(original);
@@ -137,13 +149,73 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
           page.drawImage(pngImage, { x: 0, y: 0, width, height });
         }
 
+        const lastPage = pages[pages.length - 1];
+
+        if (designSignoff) {
+          const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+          const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          const image =
+            designSignoff.imageType === "png"
+              ? await pdfDoc.embedPng(designSignoff.imageBytes)
+              : await pdfDoc.embedJpg(designSignoff.imageBytes);
+
+          const boxW = 200;
+          const boxH = 80;
+          const x = 24;
+          const y = 24;
+
+          lastPage.drawRectangle({
+            x,
+            y,
+            width: boxW,
+            height: boxH,
+            borderColor: rgb(0.34, 0.36, 0.39),
+            borderWidth: 1.5,
+            color: rgb(1, 1, 1),
+            opacity: 0.92,
+          });
+          lastPage.drawText("TTD DESAIN", {
+            x: x + 10,
+            y: y + boxH - 16,
+            size: 9,
+            font,
+            color: rgb(0.34, 0.36, 0.39),
+          });
+
+          const imgDims = image.scale(1);
+          const maxImgW = boxW - 20;
+          const maxImgH = 34;
+          const scale = Math.min(maxImgW / imgDims.width, maxImgH / imgDims.height, 1);
+          lastPage.drawImage(image, {
+            x: x + 10,
+            y: y + boxH - 22 - imgDims.height * scale,
+            width: imgDims.width * scale,
+            height: imgDims.height * scale,
+          });
+
+          lastPage.drawText(designSignoff.name, {
+            x: x + 10,
+            y: y + 18,
+            size: 9,
+            font: fontRegular,
+            color: rgb(0.08, 0.09, 0.11),
+          });
+          lastPage.drawText(`Tim Design · ${designSignoff.dateText}`, {
+            x: x + 10,
+            y: y + 7,
+            size: 7,
+            font: fontRegular,
+            color: rgb(0.34, 0.36, 0.39),
+          });
+        }
+
         if (stamp) {
           const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
           const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-          const lastPage = pages[pages.length - 1];
           const { width } = lastPage.getSize();
           const boxW = 220;
-          const boxH = 64;
+          const hasImage = !!stamp.signatureImage;
+          const boxH = hasImage ? 96 : 64;
           const x = width - boxW - 24;
           const y = 24;
 
@@ -157,23 +229,44 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
             color: rgb(1, 1, 1),
             opacity: 0.92,
           });
+
+          let cursorY = y + boxH - 20;
+
+          if (hasImage && stamp.signatureImage) {
+            const image =
+              stamp.signatureImage.imageType === "png"
+                ? await pdfDoc.embedPng(stamp.signatureImage.imageBytes)
+                : await pdfDoc.embedJpg(stamp.signatureImage.imageBytes);
+            const dims = image.scale(1);
+            const maxImgW = boxW - 20;
+            const maxImgH = 32;
+            const scale = Math.min(maxImgW / dims.width, maxImgH / dims.height, 1);
+            lastPage.drawImage(image, {
+              x: x + 10,
+              y: cursorY - dims.height * scale + 8,
+              width: dims.width * scale,
+              height: dims.height * scale,
+            });
+            cursorY -= maxImgH + 8;
+          }
+
           lastPage.drawText(stamp.label, {
             x: x + 10,
-            y: y + boxH - 20,
+            y: cursorY,
             size: 11,
             font,
             color: rgb(0.11, 0.31, 0.54),
           });
           lastPage.drawText(stamp.name, {
             x: x + 10,
-            y: y + boxH - 36,
+            y: cursorY - 16,
             size: 10,
             font: fontRegular,
             color: rgb(0.08, 0.09, 0.11),
           });
           lastPage.drawText(`${stamp.role} · ${stamp.dateText}`, {
             x: x + 10,
-            y: y + boxH - 50,
+            y: cursorY - 30,
             size: 8,
             font: fontRegular,
             color: rgb(0.34, 0.36, 0.39),

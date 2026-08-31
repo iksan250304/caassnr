@@ -5,15 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: "#EEECE4",
-        stock: "#E3E0D6",
-        ink: "#14171C",
-        inkfaint: "#565B63",
-        proof: "#1D4E89",
-        proofdark: "#153A63",
-        press: "#B23A2E",
-        pressdark: "#8C2C22",
-        amber: "#C08A1E",
+        paper: "#FFFFFF",
+        stock: "#F5F5F5",
+        ink: "#1A1A1A",
+        inkfaint: "#6B6B6B",
+        proof: "#C8102E",
+        proofdark: "#9E0B22",
+        press: "#7A1116",
+        pressdark: "#5C0D10",
+        amber: "#FFFFFF",
         approve: "#2F6F4F",
       },
       fontFamily: {
@@ -23,7 +23,7 @@ const config: Config = {
       },
       backgroundImage: {
         halftone:
-          "radial-gradient(circle, rgba(20,23,28,0.06) 1px, transparent 1px)",
+          "radial-gradient(circle, rgba(26,26,26,0.06) 1px, transparent 1px)",
       },
       backgroundSize: {
         halftone: "8px 8px",

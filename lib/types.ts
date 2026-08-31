@@ -23,10 +23,38 @@ export interface Profile {
   deactivated?: boolean;
 }
 
+export type Category =
+  | "inner_box"
+  | "pouch"
+  | "ifu"
+  | "label"
+  | "master_carton"
+  | "lainnya";
+
+export const CATEGORY_LABEL: Record<Category, string> = {
+  inner_box: "Inner Box",
+  pouch: "Pouch",
+  ifu: "IFU",
+  label: "Label",
+  master_carton: "Master Carton",
+  lainnya: "Lainnya",
+};
+
+// Kode singkat yang dipakai sebagai prefix nama file, mis. "[InnerBox] nama-file"
+export const CATEGORY_CODE: Record<Category, string> = {
+  inner_box: "InnerBox",
+  pouch: "Pouch",
+  ifu: "IFU",
+  label: "Label",
+  master_carton: "MasterCarton",
+  lainnya: "Lainnya",
+};
+
 export interface Artwork {
   id: string;
   title: string;
   description: string | null;
+  category: Category;
   file_url: string;
   version: number;
   status: ArtworkStatus;
@@ -43,6 +71,7 @@ export interface ApprovalLog {
   action: ApprovalAction;
   feedback_notes: string | null;
   annotated_pdf_url: string | null;
+  signature_url: string | null;
   signed_at: string;
   actor?: Profile;
 }

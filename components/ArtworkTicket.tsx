@@ -1,4 +1,4 @@
-import { Artwork } from "@/lib/types";
+import { Artwork, CATEGORY_LABEL } from "@/lib/types";
 import StatusBadge from "./StatusBadge";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -16,9 +16,14 @@ export default function ArtworkTicket({
     <div className="regmark ticket relative flex flex-col gap-3 p-5 transition hover:border-ink/30">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
-            Job No. {artwork.id.slice(0, 8)} · v{artwork.version}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
+              Job No. {artwork.id.slice(0, 8)} · v{artwork.version}
+            </p>
+            <span className="inline-block border border-proof/30 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-proof">
+              {CATEGORY_LABEL[artwork.category]}
+            </span>
+          </div>
           <h3 className="mt-1 font-display text-base leading-tight text-ink">
             {artwork.title}
           </h3>

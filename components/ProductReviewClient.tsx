@@ -1,9 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { uploadPdf } from "@/lib/storage";
+import {
+  uploadPdf,
+  uploadSignatureImage,
+  getSignedUrl,
+  validateSignatureImage,
+  SIGNATURE_BUCKET,
+} from "@/lib/storage";
 import { Artwork } from "@/lib/types";
 import PdfReviewer, { PdfReviewerHandle } from "./PdfReviewer";
 import StatusBadge from "./StatusBadge";
@@ -24,11 +30,55 @@ export default function ProductReviewClient({
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const [savedSignaturePath, setSavedSignaturePath] = useState<string | null>(null);
+  const [savedSignaturePreview, setSavedSignaturePreview] = useState<string | null>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
   const alreadyDecided = artwork.status !== "pending_product";
 
+  // Ambil TTD tersimpan milik user Produk yang login (kalau ada).
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("signature_url")
+        .eq("id", user.id)
+        .single();
+      if (profile?.signature_url) {
+        setSavedSignaturePath(profile.signature_url);
+        try {
+          const url = await getSignedUrl(profile.signature_url, 3600, SIGNATURE_BUCKET);
+          setSavedSignaturePreview(url);
+        } catch {
+          // file mungkin sudah dihapus manual; abaikan
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const url = await getSignedUrl(artwork.file_url);
+      window.open(url, "_blank");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   async function handleApprove() {
     setError(null);
+    if (!signatureFile && !savedSignaturePath) {
+      setError("Unggah gambar tanda tangan (PNG/JPG) sebelum ACC.");
+      return;
+    }
     setBusy("approve");
     try {
       const {
@@ -36,13 +86,69 @@ export default function ProductReviewClient({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Sesi berakhir.");
 
+      // Unggah/ganti TTD Produk kalau pilih file baru; kalau tidak, pakai yang tersimpan.
+      let signaturePath = savedSignaturePath;
+      if (signatureFile) {
+        const sigError = validateSignatureImage(signatureFile);
+        if (sigError) throw new Error(sigError);
+        const ext = signatureFile.type === "image/png" ? "png" : "jpg";
+        signaturePath = await uploadSignatureImage(`${user.id}/signature.${ext}`, signatureFile);
+        await supabase.from("profiles").update({ signature_url: signaturePath }).eq("id", user.id);
+      }
+
       const dateText = format(new Date(), "d MMM yyyy HH:mm");
-      const bytes = await reviewerHandle.current!.exportStampedPdf({
-        label: "DISETUJUI — TIM PRODUK",
-        name: reviewer.name,
-        role: "Tim Produk",
-        dateText,
-      });
+
+      // Gambar TTD Produk sendiri, ikut dibubuhkan ke stempel ACC di kanan bawah.
+      const sigUrl = await getSignedUrl(signaturePath!, 3600, SIGNATURE_BUCKET);
+      const sigBytes = await fetch(sigUrl).then((r) => r.arrayBuffer());
+      const signatureImage = {
+        imageBytes: sigBytes,
+        imageType: (signaturePath!.endsWith(".jpg") ? "jpg" : "png") as "jpg" | "png",
+      };
+
+      // Ambil TTD gambar Design dari log "submitted" terbaru untuk artwork ini, supaya
+      // TTD Design ikut terbawa ke dokumen final yang nanti dicetak Purchasing.
+      let designSignoff:
+        | { imageBytes: ArrayBuffer; imageType: "png" | "jpg"; name: string; dateText: string }
+        | undefined;
+      const { data: submittedLog } = await supabase
+        .from("approval_logs")
+        .select("signature_url, signed_at")
+        .eq("artwork_id", artwork.id)
+        .eq("action", "submitted")
+        .order("signed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (submittedLog?.signature_url) {
+        try {
+          const designSigUrl = await getSignedUrl(
+            submittedLog.signature_url,
+            3600,
+            SIGNATURE_BUCKET
+          );
+          const imageBytes = await fetch(designSigUrl).then((r) => r.arrayBuffer());
+          designSignoff = {
+            imageBytes,
+            imageType: submittedLog.signature_url.endsWith(".jpg") ? "jpg" : "png",
+            name: artwork.creator?.full_name ?? "Tim Design",
+            dateText: format(new Date(submittedLog.signed_at), "d MMM yyyy HH:mm"),
+          };
+        } catch {
+          // gambar TTD tidak ditemukan/rusak; lanjut tanpa signoff gambar
+        }
+      }
+
+      const bytes = await reviewerHandle.current!.exportStampedPdf(
+        {
+          label: "DISETUJUI — TIM PRODUK",
+          name: reviewer.name,
+          role: "Tim Produk",
+          dateText,
+          signatureImage,
+        },
+        designSignoff
+      );
 
       const stampedPath = `${artwork.id}/v${artwork.version}-approved.pdf`;
       await uploadPdf(stampedPath, new Blob([bytes as BlobPart], { type: "application/pdf" }));
@@ -59,6 +165,7 @@ export default function ProductReviewClient({
         action: "approved",
         feedback_notes: feedback || null,
         annotated_pdf_url: stampedPath,
+        signature_url: signaturePath,
       });
 
       router.push("/produk");
@@ -137,6 +244,14 @@ export default function ProductReviewClient({
           Diajukan oleh {artwork.creator?.full_name}
         </p>
 
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="self-start border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider hover:border-proof hover:text-proof disabled:opacity-50"
+        >
+          {downloading ? "Membuka…" : "Unduh PDF dari Design"}
+        </button>
+
         {!alreadyDecided ? (
           <>
             <label className="flex flex-col gap-1.5">
@@ -151,6 +266,39 @@ export default function ProductReviewClient({
                 placeholder="Contoh: Warna logo kurang kontras, geser posisi barcode 2mm ke kanan."
               />
             </label>
+
+            <div className="flex flex-col gap-2 border-t border-dashed border-ink/15 pt-3">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
+                TTD Digital (wajib bila ACC)
+              </span>
+              <div className="flex flex-col items-start gap-3 sm:flex-row">
+                <div className="flex h-16 w-28 flex-shrink-0 items-center justify-center border border-dashed border-ink/25 bg-white">
+                  {signatureFile ? (
+                    <img
+                      src={URL.createObjectURL(signatureFile)}
+                      alt="Preview TTD baru"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : savedSignaturePreview ? (
+                    <img
+                      src={savedSignaturePreview}
+                      alt="TTD tersimpan"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="px-2 text-center font-mono text-[9px] text-inkfaint">
+                      Belum ada TTD
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(e) => setSignatureFile(e.target.files?.[0] ?? null)}
+                  className="flex-1 border border-dashed border-ink/25 bg-white px-2 py-2 text-xs file:mr-2 file:border-0 file:bg-ink file:px-2 file:py-1 file:font-mono file:text-[10px] file:uppercase file:text-paper"
+                />
+              </div>
+            </div>
 
             {error && (
               <p className="border border-press/30 bg-press/5 px-3 py-2 font-mono text-xs text-press">
