@@ -1,15 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import AdminUserManager from "@/components/AdminUserManager";
-import StatusBadge from "@/components/StatusBadge";
-import { ApprovalLog } from "@/lib/types";
-import { format } from "date-fns";
-
-const ACTION_LABEL: Record<string, string> = {
-  submitted: "Diajukan",
-  approved: "Disetujui",
-  rejected: "Ditolak",
-  sent_to_print: "Naik Cetak",
-};
+import AdminTabs from "@/components/AdminTabs";
 
 export default async function AdminPage() {
   const supabase = createClient();
@@ -29,48 +19,7 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      <AdminUserManager />
-
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-inkfaint">
-          Audit Trail
-        </p>
-        <div className="ticket overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-ink/10 font-mono text-[10px] uppercase tracking-wider text-inkfaint">
-                <th className="px-4 py-3">Waktu</th>
-                <th className="px-4 py-3">Artwork</th>
-                <th className="px-4 py-3">Aksi</th>
-                <th className="px-4 py-3">Oleh</th>
-                <th className="px-4 py-3">Catatan</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(logs as any[] | null)?.map((log: ApprovalLog & {
-                actor: { full_name: string; role: string };
-                artwork: { title: string; status: string };
-              }) => (
-                <tr key={log.id} className="border-b border-ink/5 last:border-0 align-top">
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-inkfaint">
-                    {format(new Date(log.signed_at), "d MMM yyyy HH:mm")}
-                  </td>
-                  <td className="px-4 py-3">{log.artwork?.title}</td>
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {ACTION_LABEL[log.action] ?? log.action}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs">
-                    {log.actor?.full_name}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-inkfaint">
-                    {log.feedback_notes ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <AdminTabs logs={(logs as any[]) ?? []} />
     </div>
   );
 }

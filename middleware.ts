@@ -62,10 +62,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Block cross-role access to protected sections
+    // Block cross-role access to protected sections — admin dikecualikan, boleh
+    // masuk ke section manapun (design/produk/purchasing/admin).
     const section = "/" + path.split("/")[1];
     const protectedSections = Object.values(ROLE_HOME);
     if (
+      role !== "admin" &&
       protectedSections.includes(section) &&
       home &&
       section !== home

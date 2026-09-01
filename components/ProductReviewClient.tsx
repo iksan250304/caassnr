@@ -13,6 +13,7 @@ import {
 import { Artwork } from "@/lib/types";
 import PdfReviewer, { PdfReviewerHandle } from "./PdfReviewer";
 import StatusBadge from "./StatusBadge";
+import SignatureUploadField from "./SignatureUploadField";
 import { format } from "date-fns";
 
 export default function ProductReviewClient({
@@ -271,33 +272,11 @@ export default function ProductReviewClient({
               <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
                 TTD Digital (wajib bila ACC)
               </span>
-              <div className="flex flex-col items-start gap-3 sm:flex-row">
-                <div className="flex h-16 w-28 flex-shrink-0 items-center justify-center border border-dashed border-ink/25 bg-white">
-                  {signatureFile ? (
-                    <img
-                      src={URL.createObjectURL(signatureFile)}
-                      alt="Preview TTD baru"
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : savedSignaturePreview ? (
-                    <img
-                      src={savedSignaturePreview}
-                      alt="TTD tersimpan"
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : (
-                    <span className="px-2 text-center font-mono text-[9px] text-inkfaint">
-                      Belum ada TTD
-                    </span>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={(e) => setSignatureFile(e.target.files?.[0] ?? null)}
-                  className="flex-1 border border-dashed border-ink/25 bg-white px-2 py-2 text-xs file:mr-2 file:border-0 file:bg-ink file:px-2 file:py-1 file:font-mono file:text-[10px] file:uppercase file:text-paper"
-                />
-              </div>
+              <SignatureUploadField
+                file={signatureFile}
+                savedPreviewUrl={savedSignaturePreview}
+                onFileChange={setSignatureFile}
+              />
             </div>
 
             {error && (

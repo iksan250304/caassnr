@@ -9,8 +9,6 @@ import {
   useCallback,
 } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -49,6 +47,7 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
     const [numPages, setNumPages] = useState(0);
     const [pageIndex, setPageIndex] = useState(1);
     const [drawing, setDrawing] = useState(false);
+    const [zoom, setZoom] = useState(1);
     const [pageSize, setPageSize] = useState({ width: PAGE_WIDTH, height: 960 });
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     // dataURL snapshot of each page's markup layer, keyed by page number
@@ -279,7 +278,7 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
 
     return (
       <div className="flex flex-col items-center gap-3">
-        <div className="flex w-full items-center justify-between font-mono text-xs uppercase tracking-wider text-inkfaint">
+        <div className="flex w-full flex-wrap items-center justify-between gap-2 font-mono text-xs uppercase tracking-wider text-inkfaint">
           <div className="flex items-center gap-2">
             <button
               disabled={pageIndex <= 1}
@@ -299,6 +298,33 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
               Hal →
             </button>
           </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+              disabled={zoom <= 0.5}
+              className="border border-ink/20 px-2 py-1 disabled:opacity-30"
+            >
+              − Zoom
+            </button>
+            <span className="w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
+              disabled={zoom >= 2.5}
+              className="border border-ink/20 px-2 py-1 disabled:opacity-30"
+            >
+              + Zoom
+            </button>
+            {zoom !== 1 && (
+              <button
+                onClick={() => setZoom(1)}
+                className="border border-ink/20 px-2 py-1 text-inkfaint hover:text-ink"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
           <button
             onClick={clearPage}
             className="border border-press/30 px-2 py-1 text-press"
@@ -307,32 +333,45 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
           </button>
         </div>
 
-        <div
-          className="relative border border-ink/15 bg-white shadow-sm"
-          style={{ width: pageSize.width, height: pageSize.height }}
-        >
-          <Document file={fileUrl} onLoadSuccess={(d) => setNumPages(d.numPages)}>
-            <Page
-              pageNumber={pageIndex}
+        <div className="max-h-[75vh] w-full overflow-auto border border-ink/10 bg-stock p-4">
+          <div
+            className="relative mx-auto border border-ink/15 bg-white shadow-sm"
+            style={{ width: pageSize.width, height: pageSize.height }}
+          >
+            <Document file={fileUrl} onLoadSuccess={(d) => setNumPages(d.numPages)}>
+              <Page
+                pageNumber={pageIndex}
+                width={PAGE_WIDTH * zoom}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                onRenderSuccess={(page) => {
+                  const targetWidth = PAGE_WIDTH * zoom;
+                  const h = (page.height / page.width) * targetWidth;
+                  setPageSize((prev) =>
+                    prev.width === targetWidth && prev.height === h
+                      ? prev
+                      : { width: targetWidth, height: h }
+                  );
+                }}
+              />
+            </Document>
+            <canvas
+              ref={canvasRef}
               width={pageSize.width}
-              onRenderSuccess={(page) => {
-                const h = (page.height / page.width) * PAGE_WIDTH;
-                setPageSize((prev) =>
-                  prev.height === h ? prev : { width: PAGE_WIDTH, height: h }
-                );
+              height={pageSize.height}
+              style={{
+                width: pageSize.width,
+                height: pageSize.height,
+                zIndex: 10,
+                pointerEvents: "auto",
               }}
+              className="absolute left-0 top-0 cursor-crosshair touch-none"
+              onPointerDown={startDraw}
+              onPointerMove={moveDraw}
+              onPointerUp={endDraw}
+              onPointerLeave={endDraw}
             />
-          </Document>
-          <canvas
-            ref={canvasRef}
-            width={pageSize.width}
-            height={pageSize.height}
-            className="absolute left-0 top-0 cursor-crosshair touch-none"
-            onPointerDown={startDraw}
-            onPointerMove={moveDraw}
-            onPointerUp={endDraw}
-            onPointerLeave={endDraw}
-          />
+          </div>
         </div>
         <p className="font-mono text-[11px] text-inkfaint">
           Coret langsung di atas dokumen untuk menandai revisi (tinta merah). Coretan tersimpan per halaman.

@@ -2,14 +2,22 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { Role } from "@/lib/types";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 
-const ROLE_TITLE: Record<Role, string> = {
-  design: "Meja Desain",
-  product: "Meja Produk",
-  purchasing: "Meja Purchasing",
-  admin: "Panel Admin",
+const SECTION_TITLE: Record<string, string> = {
+  "/design": "Panel Desain",
+  "/produk": "Panel Produk",
+  "/purchasing": "Panel Purchasing",
+  "/admin": "Panel Admin",
 };
+
+const ADMIN_SWITCHER_LINKS: { href: string; label: string }[] = [
+  { href: "/design", label: "Design" },
+  { href: "/produk", label: "Produk" },
+  { href: "/purchasing", label: "Purchasing" },
+  { href: "/admin", label: "Admin" },
+];
 
 export default function Navbar({
   role,
@@ -19,7 +27,11 @@ export default function Navbar({
   fullName: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
+
+  const currentSection = "/" + (pathname?.split("/")[1] ?? "");
+  const title = SECTION_TITLE[currentSection] ?? SECTION_TITLE["/" + role] ?? "CAAS";
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -29,7 +41,7 @@ export default function Navbar({
 
   return (
     <header className="border-b border-ink/10 bg-paper/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="regmark flex h-9 w-9 items-center justify-center border border-ink/60 text-[10px] font-mono text-ink">
             +
@@ -39,10 +51,32 @@ export default function Navbar({
               CAAS
             </p>
             <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
-              {ROLE_TITLE[role]}
+              {title}
+              {role === "admin" && (
+                <span className="ml-1.5 text-proof">(mode admin)</span>
+              )}
             </p>
           </div>
         </div>
+
+        {role === "admin" && (
+          <nav className="flex items-center gap-1">
+            {ADMIN_SWITCHER_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-3 py-1.5 font-mono text-xs uppercase tracking-wider transition ${
+                  currentSection === link.href
+                    ? "bg-ink text-paper"
+                    : "border border-ink/20 text-ink hover:border-ink"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+
         <div className="flex items-center gap-4">
           <span className="hidden font-mono text-xs text-inkfaint sm:inline">
             {fullName}

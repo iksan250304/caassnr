@@ -8,11 +8,20 @@ export default async function DesignPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: artworks } = await supabase
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user!.id)
+    .single();
+  const isAdmin = profile?.role === "admin";
+
+  // Admin melihat & bisa mengelola artwork SEMUA orang, bukan cuma miliknya sendiri.
+  let query = supabase
     .from("artworks")
     .select("*, creator:created_by(id, full_name, role)")
-    .eq("created_by", user!.id)
     .order("created_at", { ascending: false });
+  if (!isAdmin) query = query.eq("created_by", user!.id);
+  const { data: artworks } = await query;
 
   const rejectedIds = (artworks ?? [])
     .filter((a) => a.status === "rejected_product")
@@ -39,9 +48,11 @@ export default async function DesignPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="font-display text-2xl">Meja Desain</h1>
+        <h1 className="font-display text-2xl">Panel Desain</h1>
         <p className="mt-1 font-mono text-xs text-inkfaint">
-          Ajukan artwork baru dan pantau statusnya sampai naik cetak.
+          {isAdmin
+            ? "Mode admin — menampilkan artwork dari seluruh tim Design."
+            : "Ajukan artwork baru dan pantau statusnya sampai naik cetak."}
         </p>
       </div>
 
@@ -49,6 +60,7 @@ export default async function DesignPage() {
         revisionQueue={revisionQueue}
         history={history}
         feedbackMap={feedbackMap}
+        isAdmin={isAdmin}
       />
     </div>
   );

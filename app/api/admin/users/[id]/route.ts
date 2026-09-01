@@ -23,7 +23,7 @@ export async function PATCH(
   if (!admin)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { full_name, role, reactivate } = await req.json();
+  const { full_name, role, reactivate, new_password } = await req.json();
   const adminClient = createAdminClient();
 
   if (full_name !== undefined || role !== undefined) {
@@ -37,6 +37,19 @@ export async function PATCH(
   if (reactivate) {
     const { error } = await adminClient.auth.admin.updateUserById(params.id, {
       ban_duration: "none",
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (new_password) {
+    if (String(new_password).length < 6) {
+      return NextResponse.json(
+        { error: "Sandi baru minimal 6 karakter." },
+        { status: 400 }
+      );
+    }
+    const { error } = await adminClient.auth.admin.updateUserById(params.id, {
+      password: new_password,
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   }

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { Category, CATEGORY_CODE, CATEGORY_LABEL } from "@/lib/types";
 import { CHECKLIST_ITEMS, CHECKLIST_REQUIRED_CATEGORIES } from "@/lib/checklist";
 import { format } from "date-fns";
+import SignatureUploadField from "./SignatureUploadField";
 
 function stripExtension(name: string) {
   return name.replace(/\.pdf$/i, "");
@@ -328,46 +329,24 @@ export default function UploadArtworkForm({
           Pernyataan Pengajuan
         </p>
 
-        <div className="flex flex-col items-start gap-4 sm:flex-row">
-          <div className="flex h-20 w-32 flex-shrink-0 items-center justify-center border border-dashed border-ink/25 bg-white">
-            {signatureFile ? (
-              <img
-                src={URL.createObjectURL(signatureFile)}
-                alt="Preview tanda tangan baru"
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : savedSignaturePreview ? (
-              <img
-                src={savedSignaturePreview}
-                alt="Tanda tangan tersimpan"
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : (
-              <span className="px-2 text-center font-mono text-[10px] text-inkfaint">
-                Belum ada TTD
-              </span>
-            )}
-          </div>
-          <div className="flex flex-1 flex-col gap-1.5">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
-              Gambar Tanda Tangan (PNG/JPG, maks. 2MB)
-            </span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg"
-              onChange={(e) => setSignatureFile(e.target.files?.[0] ?? null)}
-              className="border border-dashed border-ink/25 bg-white px-3 py-2 text-xs file:mr-3 file:border-0 file:bg-ink file:px-3 file:py-1.5 file:font-mono file:text-[10px] file:uppercase file:text-paper"
-            />
-            <p className="font-mono text-[10px] text-inkfaint">
-              {savedSignaturePath
-                ? "Sudah ada TTD tersimpan dari pengajuan sebelumnya — unggah file baru untuk menggantinya, atau biarkan kosong untuk memakai yang lama."
-                : "Wajib diunggah sebelum bisa submit. TTD ini akan tersimpan dan otomatis dipakai lagi untuk pengajuan berikutnya."}
-            </p>
-            <p className="font-mono text-[10px] text-inkfaint">
-              Gambar ini akan dibubuhkan ke dokumen final saat Tim Produk ACC, sehingga tetap
-              tampil ketika Purchasing mencetak artwork.
-            </p>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
+            Gambar Tanda Tangan (PNG/JPG, maks. 2MB)
+          </span>
+          <SignatureUploadField
+            file={signatureFile}
+            savedPreviewUrl={savedSignaturePreview}
+            onFileChange={setSignatureFile}
+          />
+          <p className="font-mono text-[10px] text-inkfaint">
+            {savedSignaturePath
+              ? "Sudah ada TTD tersimpan dari pengajuan sebelumnya — unggah file baru untuk menggantinya, atau biarkan kosong untuk memakai yang lama."
+              : "Wajib diunggah sebelum bisa submit. TTD ini akan tersimpan dan otomatis dipakai lagi untuk pengajuan berikutnya."}
+          </p>
+          <p className="font-mono text-[10px] text-inkfaint">
+            Gambar ini akan dibubuhkan ke dokumen final saat Tim Produk ACC, sehingga tetap
+            tampil ketika Purchasing mencetak artwork.
+          </p>
         </div>
 
         <label className="flex items-start gap-2 text-sm">

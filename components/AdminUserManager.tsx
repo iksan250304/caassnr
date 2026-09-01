@@ -24,6 +24,12 @@ export default function AdminUserManager() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+
   async function load() {
     setLoading(true);
     const res = await fetch("/api/admin/users");
@@ -64,6 +70,62 @@ export default function AdminUserManager() {
       body: JSON.stringify({ role, full_name }),
     });
     load();
+  }
+
+  function startEditName(u: Profile) {
+    setEditingId(u.id);
+    setEditingName(u.full_name);
+    setResettingId(null);
+  }
+
+  async function saveEditName(id: string, role: Role) {
+    if (!editingName.trim()) {
+      setError("Nama tidak boleh kosong.");
+      return;
+    }
+    setError(null);
+    const res = await fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ full_name: editingName.trim(), role }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error);
+      return;
+    }
+    setEditingId(null);
+    load();
+  }
+
+  function startReset(id: string) {
+    setResettingId(id);
+    setResetPassword("");
+    setEditingId(null);
+    setNotice(null);
+  }
+
+  async function saveResetPassword(id: string, name: string) {
+    if (resetPassword.length < 6) {
+      setError("Sandi baru minimal 6 karakter.");
+      return;
+    }
+    setError(null);
+    const res = await fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_password: resetPassword }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error);
+      return;
+    }
+    setNotice(
+      `Sandi ${name} berhasil diganti jadi: "${resetPassword}" — catat/salin sekarang, sandi ini tidak akan ditampilkan lagi setelah ini. Beritahukan ke user secara langsung/pribadi.`
+    );
+    setResettingId(null);
+    setResetPassword("");
   }
 
   async function handleDelete(id: string) {
@@ -112,7 +174,7 @@ export default function AdminUserManager() {
         </p>
       )}
       {notice && (
-        <p className="border border-amber/30 bg-amber/5 px-3 py-2 font-mono text-xs text-amber">
+        <p className="whitespace-pre-line border border-amber/30 bg-amber/5 px-3 py-2 font-mono text-xs text-amber">
           {notice}
         </p>
       )}
@@ -179,8 +241,72 @@ export default function AdminUserManager() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id} className="border-b border-ink/5 last:border-0">
-                  <td className="px-4 py-3">{u.full_name}</td>
+                <tr key={u.id} className="border-b border-ink/5 last:border-0 align-top">
+                  <td className="px-4 py-3">
+                    {editingId === u.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEditName(u.id, u.role);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
+                          className="border border-proof bg-white px-2 py-1 text-sm outline-none"
+                        />
+                        <button
+                          onClick={() => saveEditName(u.id, u.role)}
+                          className="font-mono text-xs uppercase text-approve hover:underline"
+                        >
+                          Simpan
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="font-mono text-xs uppercase text-inkfaint hover:underline"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEditName(u)}
+                        className="text-left hover:underline"
+                        title="Klik untuk ubah nama"
+                      >
+                        {u.full_name}
+                      </button>
+                    )}
+
+                    {resettingId === u.id && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Sandi baru (min. 6 karakter)"
+                          value={resetPassword}
+                          onChange={(e) => setResetPassword(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveResetPassword(u.id, u.full_name);
+                            if (e.key === "Escape") setResettingId(null);
+                          }}
+                          className="border border-amber bg-white px-2 py-1 font-mono text-xs outline-none"
+                        />
+                        <button
+                          onClick={() => saveResetPassword(u.id, u.full_name)}
+                          className="font-mono text-xs uppercase text-approve hover:underline"
+                        >
+                          Ganti
+                        </button>
+                        <button
+                          onClick={() => setResettingId(null)}
+                          className="font-mono text-xs uppercase text-inkfaint hover:underline"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <select
                       value={u.role}
@@ -207,7 +333,7 @@ export default function AdminUserManager() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right space-x-3">
+                  <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap">
                     {u.deactivated && (
                       <button
                         onClick={() => handleReactivate(u.id)}
@@ -216,6 +342,12 @@ export default function AdminUserManager() {
                         Aktifkan
                       </button>
                     )}
+                    <button
+                      onClick={() => startReset(u.id)}
+                      className="font-mono text-xs uppercase tracking-wider text-amber hover:underline"
+                    >
+                      Reset Sandi
+                    </button>
                     <button
                       onClick={() => handleDelete(u.id)}
                       className="font-mono text-xs uppercase tracking-wider text-press hover:underline"

@@ -13,10 +13,12 @@ export default function DesignActionTabs({
   revisionQueue,
   history,
   feedbackMap,
+  isAdmin,
 }: {
   revisionQueue: RevisionEntry[];
   history: Artwork[];
   feedbackMap: Record<string, ApprovalLog>;
+  isAdmin?: boolean;
 }) {
   const [tab, setTab] = useState<"upload" | "revisi" | "riwayat">("upload");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -135,6 +137,7 @@ export default function DesignActionTabs({
               key={artwork.id}
               artwork={artwork}
               latestFeedback={feedbackMap[artwork.id]}
+              isAdmin={isAdmin}
             />
           ))}
         </div>

@@ -2,54 +2,55 @@
 
 import { useMemo, useState } from "react";
 import { Artwork, Category, CATEGORY_LABEL } from "@/lib/types";
-import ArtworkTicket from "./ArtworkTicket";
+import PurchasingItem from "./PurchasingItem";
 
-export default function ProductActionTabs({
-  queue,
+export default function PurchasingActionTabs({
+  ready,
   history,
 }: {
-  queue: Artwork[];
+  ready: Artwork[];
   history: Artwork[];
 }) {
-  const [tab, setTab] = useState<"antrean" | "riwayat">("antrean");
+  const [tab, setTab] = useState<"siap" | "riwayat">("siap");
   const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
 
-  const filteredQueue = useMemo(
-    () => (categoryFilter === "all" ? queue : queue.filter((a) => a.category === categoryFilter)),
-    [queue, categoryFilter]
+  const filteredHistory = useMemo(
+    () =>
+      categoryFilter === "all" ? history : history.filter((a) => a.category === categoryFilter),
+    [history, categoryFilter]
   );
 
   const countByCategory = useMemo(() => {
     const map: Partial<Record<Category, number>> = {};
-    for (const a of queue) map[a.category] = (map[a.category] ?? 0) + 1;
+    for (const a of history) map[a.category] = (map[a.category] ?? 0) + 1;
     return map;
-  }, [queue]);
+  }, [history]);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Solid pill tabs — pakai inline style langsung (bukan cuma class Tailwind)
-          supaya kontras tetap terjamin meski cache/build sempat stale */}
+      {/* Inline style langsung, bukan cuma class Tailwind, biar kontras selalu aman
+          walau cache/build sempat stale. */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setTab("antrean")}
+          onClick={() => setTab("siap")}
           style={
-            tab === "antrean"
-              ? { backgroundColor: "#c31f1f", color: "#FFFFFF", borderColor: "#c31f1f" }
+            tab === "siap"
+              ? { backgroundColor: "#2F6F4F", color: "#FFFFFF", borderColor: "#2F6F4F" }
               : { backgroundColor: "#FFFFFF", color: "#1A1A1A", borderColor: "rgba(26,26,26,0.2)" }
           }
           className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition"
         >
-          Antrean Review
-          {queue.length > 0 && (
+          Siap Cetak
+          {ready.length > 0 && (
             <span
               style={
-                tab === "antrean"
+                tab === "siap"
                   ? { backgroundColor: "rgba(255,255,255,0.3)", color: "#FFFFFF" }
-                  : { backgroundColor: "#b31b1b", color: "#FFFFFF" }
+                  : { backgroundColor: "#2F6F4F", color: "#FFFFFF" }
               }
               className="rounded-full px-1.5 py-0.5 text-[10px]"
             >
-              {queue.length}
+              {ready.length}
             </span>
           )}
         </button>
@@ -62,7 +63,7 @@ export default function ProductActionTabs({
           }
           className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition"
         >
-          Riwayat
+          Riwayat Naik Cetak
           <span
             style={
               tab === "riwayat"
@@ -76,9 +77,23 @@ export default function ProductActionTabs({
         </button>
       </div>
 
-      {tab === "antrean" && (
+      {tab === "siap" && (
         <div className="flex flex-col gap-4">
-          {/* Filter kategori — supaya bisa langsung lihat "tim design kirim apa saja" per kategori */}
+          {!ready.length && (
+            <p className="ticket-perf border border-dashed border-ink/20 p-8 text-center font-mono text-xs text-inkfaint">
+              Belum ada artwork yang disetujui tim produk.
+            </p>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {ready.map((artwork) => (
+              <PurchasingItem key={artwork.id} artwork={artwork} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "riwayat" && (
+        <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setCategoryFilter("all")}
@@ -89,7 +104,7 @@ export default function ProductActionTabs({
               }
               className="border px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider transition"
             >
-              Semua ({queue.length})
+              Semua ({history.length})
             </button>
             {(Object.keys(CATEGORY_LABEL) as Category[]).map((c) => {
               const count = countByCategory[c] ?? 0;
@@ -111,36 +126,16 @@ export default function ProductActionTabs({
             })}
           </div>
 
-          {!filteredQueue.length && (
+          {!filteredHistory.length && (
             <p className="ticket-perf border border-dashed border-ink/20 p-8 text-center font-mono text-xs text-inkfaint">
-              {queue.length
-                ? "Tidak ada artwork untuk kategori ini."
-                : "Tidak ada artwork yang menunggu review."}
+              {history.length
+                ? "Tidak ada riwayat untuk kategori ini."
+                : "Belum ada riwayat naik cetak."}
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
-            {filteredQueue.map((artwork) => (
-              <ArtworkTicket
-                key={artwork.id}
-                artwork={artwork}
-                href={`/produk/${artwork.id}`}
-                actionLabel="Review"
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tab === "riwayat" && (
-        <div className="flex flex-col gap-4">
-          {!history.length && (
-            <p className="ticket-perf border border-dashed border-ink/20 p-8 text-center font-mono text-xs text-inkfaint">
-              Belum ada riwayat review.
-            </p>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2">
-            {history.map((artwork) => (
-              <ArtworkTicket key={artwork.id} artwork={artwork} />
+            {filteredHistory.map((artwork) => (
+              <PurchasingItem key={artwork.id} artwork={artwork} />
             ))}
           </div>
         </div>

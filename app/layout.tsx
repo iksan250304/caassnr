@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "CAAS — Content Approval Artwork System",
+  title: "SanSign",
   description: "Alur persetujuan artwork digital: Design → Produk → Purchasing",
 };
 

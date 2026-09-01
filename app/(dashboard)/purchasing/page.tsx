@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import PurchasingItem from "@/components/PurchasingItem";
+import PurchasingActionTabs from "@/components/PurchasingActionTabs";
 import { Artwork } from "@/lib/types";
 
 export default async function PurchasingPage() {
@@ -16,7 +16,7 @@ export default async function PurchasingPage() {
     .select("*, creator:created_by(id, full_name, role)")
     .eq("status", "printed")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
 
   return (
     <div className="flex flex-col gap-8">
@@ -27,32 +27,10 @@ export default async function PurchasingPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-approve">
-          Siap Cetak ({approved?.length ?? 0})
-        </p>
-        {!approved?.length && (
-          <p className="ticket-perf border border-dashed border-ink/20 p-8 text-center font-mono text-xs text-inkfaint">
-            Belum ada artwork yang disetujui tim produk.
-          </p>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(approved as Artwork[] | null)?.map((artwork) => (
-            <PurchasingItem key={artwork.id} artwork={artwork} />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-inkfaint">
-          Riwayat Naik Cetak
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(printed as Artwork[] | null)?.map((artwork) => (
-            <PurchasingItem key={artwork.id} artwork={artwork} />
-          ))}
-        </div>
-      </div>
+      <PurchasingActionTabs
+        ready={(approved as Artwork[] | null) ?? []}
+        history={(printed as Artwork[] | null) ?? []}
+      />
     </div>
   );
 }
