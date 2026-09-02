@@ -4,11 +4,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Role } from "@/lib/types";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 const SECTION_TITLE: Record<string, string> = {
-  "/design": "Panel Desain",
-  "/produk": "Panel Produk",
-  "/purchasing": "Panel Purchasing",
+  "/design": "Meja Desain",
+  "/produk": "Meja Produk",
+  "/purchasing": "Meja Purchasing",
   "/admin": "Panel Admin",
 };
 
@@ -43,12 +44,18 @@ export default function Navbar({
     <header className="border-b border-ink/10 bg-paper/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="regmark flex h-9 w-9 items-center justify-center border border-ink/60 text-[10px] font-mono text-ink">
-            +
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden">
+            <Image
+              src="/icon-sansico.png"
+              alt="Sansico Medica"
+              width={36}
+              height={36}
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
             <p className="font-display text-sm tracking-tight text-ink">
-              CAAS
+              Content Approval Sansico Medica
             </p>
             <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
               {title}

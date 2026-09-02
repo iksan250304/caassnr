@@ -8,6 +8,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 export interface SignerInfo {
   name: string;
+  date?: string; // tanggal approve masing-masing role, ditampilkan di kolom TTD
   signatureBytes?: ArrayBuffer;
   signatureExt?: "png" | "jpg";
 }
@@ -19,7 +20,13 @@ export interface ApprovalSheetParams {
   design: SignerInfo;
   produk: SignerInfo;
   purchasing: SignerInfo;
+  logoBytes?: ArrayBuffer; // logo perusahaan, opsional
+  logoExt?: "png" | "jpg";
 }
+
+const RED = rgb(0.91, 0.11, 0.11);
+const BLACK = rgb(0.06, 0.06, 0.06);
+const GRAY = rgb(0.4, 0.4, 0.4);
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(" ");
@@ -52,41 +59,6 @@ async function renderFirstPageToPng(pdfBytes: ArrayBuffer): Promise<ArrayBuffer>
   return fetch(dataUrl).then((r) => r.arrayBuffer());
 }
 
-// Path SVG untuk kotak bersudut tumpul. Anchor (x,y) = pojok KIRI ATAS kotak;
-// koordinat lokal path pakai konvensi y-ke-bawah (khas SVG) — pdf-lib otomatis
-// membalik ini jadi ke-bawah di halaman PDF dari titik anchor tsb.
-function roundedRectPath(w: number, h: number, r: number): string {
-  return [
-    `M ${r} 0`,
-    `L ${w - r} 0`,
-    `A ${r} ${r} 0 0 1 ${w} ${r}`,
-    `L ${w} ${h - r}`,
-    `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
-    `L ${r} ${h}`,
-    `A ${r} ${r} 0 0 1 0 ${h - r}`,
-    `L 0 ${r}`,
-    `A ${r} ${r} 0 0 1 ${r} 0`,
-    `Z`,
-  ].join(" ");
-}
-
-function drawRoundedBox(
-  page: PDFPage,
-  xLeft: number,
-  yTop: number,
-  w: number,
-  h: number,
-  r: number,
-  borderColor = rgb(0.1, 0.1, 0.1)
-) {
-  page.drawSvgPath(roundedRectPath(w, h, r), {
-    x: xLeft,
-    y: yTop,
-    borderColor,
-    borderWidth: 1.3,
-  });
-}
-
 async function embedSigner(pdfDoc: PDFDocument, signer: SignerInfo) {
   if (!signer.signatureBytes) return null;
   const image =
@@ -102,69 +74,163 @@ export async function generateApprovalSheetPdf(
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]); // A4 potrait, points
   const { width, height } = page.getSize();
-  const marginX = 50;
+  const marginX = 45;
   const contentWidth = width - marginX * 2;
 
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  // 1. Judul + garis bawah
-  let cursorY = height - 70;
-  const titleText = "Content Approval Internal";
-  const titleSize = 26;
-  const titleWidth = fontBold.widthOfTextAtSize(titleText, titleSize);
-  page.drawText(titleText, {
-    x: (width - titleWidth) / 2,
+  // =========================================================
+  // 1. HEADER — judul merah, subjudul italic, logo (kanan atas), garis hitam
+  // =========================================================
+  let cursorY = height - 55;
+
+  page.drawText("Content Approval Internal", {
+    x: marginX,
     y: cursorY,
-    size: titleSize,
+    size: 26,
     font: fontBold,
-    color: rgb(0.05, 0.05, 0.05),
+    color: RED,
   });
-  cursorY -= 22;
+  cursorY -= 24;
+  page.drawText("Dokumen persetujuan (Document)", {
+    x: marginX,
+    y: cursorY,
+    size: 12,
+    font: fontItalic,
+    color: BLACK,
+  });
+
+  if (params.logoBytes) {
+    const logoImage =
+      params.logoExt === "jpg"
+        ? await pdfDoc.embedJpg(params.logoBytes)
+        : await pdfDoc.embedPng(params.logoBytes);
+    const dims = logoImage.scale(1);
+    const maxLogoW = 155;
+    const maxLogoH = 40;
+    const scale = Math.min(maxLogoW / dims.width, maxLogoH / dims.height, 1);
+    const w = dims.width * scale;
+    const h = dims.height * scale;
+    page.drawImage(logoImage, {
+      x: width - marginX - w,
+      y: height - 55 - h + 8,
+      width: w,
+      height: h,
+    });
+  }
+
+  cursorY -= 18;
   page.drawLine({
     start: { x: marginX, y: cursorY },
     end: { x: width - marginX, y: cursorY },
-    thickness: 1.5,
-    color: rgb(0.05, 0.05, 0.05),
+    thickness: 2,
+    color: BLACK,
   });
-  cursorY -= 40;
+  cursorY -= 28;
 
-  // 2. Nama File & Tanggal Cetak
-  page.drawText(`Nama File: ${params.title}`, {
-    x: marginX,
-    y: cursorY,
-    size: 12,
-    font: fontRegular,
-    color: rgb(0.1, 0.1, 0.1),
-  });
-  cursorY -= 26;
-  page.drawText(`Tanggal Cetak: ${params.printDate}`, {
-    x: marginX,
-    y: cursorY,
-    size: 12,
-    font: fontRegular,
-    color: rgb(0.1, 0.1, 0.1),
-  });
-  cursorY -= 36;
+  // =========================================================
+  // 2. TABEL "Detail File Approve"
+  // =========================================================
+  const barHeight = 28;
+  const rowHeight = 32;
+  const labelColWidth = 140;
+  const detailTableHeight = barHeight + rowHeight * 2;
+  const detailTableTop = cursorY;
 
-  // Alokasi ruang dari sini ke bawah: kotak preview besar, lalu kotak TTD 3 kolom,
-  // lalu disclaimer merah di paling bawah.
-  const disclaimerHeight = 26;
-  const signatureBoxHeight = 150;
-  const gapBetweenBoxes = 14;
-  const bottomMargin = 40;
+  // Bar merah
+  page.drawRectangle({
+    x: marginX,
+    y: detailTableTop - barHeight,
+    width: contentWidth,
+    height: barHeight,
+    color: RED,
+  });
+  const barLabel = "Detail File Approve";
+  const barLabelSize = 13;
+  const barLabelWidth = fontBold.widthOfTextAtSize(barLabel, barLabelSize);
+  page.drawText(barLabel, {
+    x: marginX + (contentWidth - barLabelWidth) / 2,
+    y: detailTableTop - barHeight / 2 - barLabelSize / 3,
+    size: barLabelSize,
+    font: fontBold,
+    color: rgb(1, 1, 1),
+  });
+
+  const detailRows: [string, string][] = [
+    ["Nama File:", params.title],
+    ["Tanggal Cetak:", params.printDate],
+  ];
+  detailRows.forEach(([label, value], i) => {
+    const rowTop = detailTableTop - barHeight - rowHeight * i;
+    page.drawText(label, {
+      x: marginX + 12,
+      y: rowTop - rowHeight / 2 - 4,
+      size: 11,
+      font: fontRegular,
+      color: BLACK,
+    });
+    const valueLines = wrapText(value, fontRegular, 11, contentWidth - labelColWidth - 24);
+    page.drawText(valueLines[0] ?? "", {
+      x: marginX + labelColWidth + 12,
+      y: rowTop - rowHeight / 2 - 4,
+      size: 11,
+      font: fontRegular,
+      color: BLACK,
+    });
+  });
+
+  // Garis-garis tabel (vertikal antar kolom, horizontal antar baris, border luar)
+  page.drawLine({
+    start: { x: marginX + labelColWidth, y: detailTableTop - barHeight },
+    end: { x: marginX + labelColWidth, y: detailTableTop - detailTableHeight },
+    thickness: 1,
+    color: BLACK,
+  });
+  page.drawLine({
+    start: { x: marginX, y: detailTableTop - barHeight - rowHeight },
+    end: { x: marginX + contentWidth, y: detailTableTop - barHeight - rowHeight },
+    thickness: 1,
+    color: BLACK,
+  });
+  page.drawRectangle({
+    x: marginX,
+    y: detailTableTop - detailTableHeight,
+    width: contentWidth,
+    height: detailTableHeight,
+    borderColor: BLACK,
+    borderWidth: 1.2,
+  });
+
+  cursorY = detailTableTop - detailTableHeight - 22;
+
+  // =========================================================
+  // Alokasi ruang tersisa: kotak preview besar, tabel TTD 3 kolom, disclaimer
+  // =========================================================
+  const disclaimerHeight = 20;
+  const ttdRowHeight = 78;
+  const nameRowHeight = 28;
+  const dateRowHeight = 24;
+  const sigTableHeight = ttdRowHeight + nameRowHeight + dateRowHeight;
+  const gapBeforeSig = 16;
+  const bottomMargin = 36;
 
   const previewBoxTop = cursorY;
   const previewBoxHeight =
-    previewBoxTop -
-    bottomMargin -
-    disclaimerHeight -
-    signatureBoxHeight -
-    gapBetweenBoxes;
+    previewBoxTop - bottomMargin - disclaimerHeight - sigTableHeight - gapBeforeSig;
 
-  // 3. Kotak besar "Preview PDF Cetak"
-  drawRoundedBox(page, marginX, previewBoxTop, contentWidth, previewBoxHeight, 14);
+  // =========================================================
+  // 3. Kotak "Preview PDF Cetak" (sudut siku, sesuai template baru)
+  // =========================================================
+  page.drawRectangle({
+    x: marginX,
+    y: previewBoxTop - previewBoxHeight,
+    width: contentWidth,
+    height: previewBoxHeight,
+    borderColor: BLACK,
+    borderWidth: 1.2,
+  });
 
   const previewPadding = 20;
   const previewPng = await renderFirstPageToPng(params.finalPdfBytes);
@@ -172,7 +238,11 @@ export async function generateApprovalSheetPdf(
   const previewDims = previewImage.scale(1);
   const maxPreviewW = contentWidth - previewPadding * 2;
   const maxPreviewH = previewBoxHeight - previewPadding * 2;
-  const previewScale = Math.min(maxPreviewW / previewDims.width, maxPreviewH / previewDims.height, 1);
+  const previewScale = Math.min(
+    maxPreviewW / previewDims.width,
+    maxPreviewH / previewDims.height,
+    1
+  );
   const previewW = previewDims.width * previewScale;
   const previewH = previewDims.height * previewScale;
   page.drawImage(previewImage, {
@@ -182,96 +252,137 @@ export async function generateApprovalSheetPdf(
     height: previewH,
   });
 
-  // 4. Kotak TTD 3 kolom (Tim Design | Tim Produk | Purchasing) dengan pita label abu-abu
-  const sigBoxTop = previewBoxTop - previewBoxHeight - gapBetweenBoxes;
+  // =========================================================
+  // 4. Tabel TTD 3 kolom: TTD | Name (Role) [pita merah] | Tanggal
+  // =========================================================
+  const sigTop = previewBoxTop - previewBoxHeight - gapBeforeSig;
   const colWidth = contentWidth / 3;
-  const labelBandHeight = 34;
-  const ttdAreaHeight = signatureBoxHeight - labelBandHeight;
-  const grayColor = rgb(0.85, 0.87, 0.87);
 
-  // Pita abu-abu label (digambar dulu sebagai fill polos, border rounded di atasnya nanti)
-  page.drawRectangle({
-    x: marginX,
-    y: sigBoxTop - signatureBoxHeight,
-    width: contentWidth,
-    height: labelBandHeight,
-    color: grayColor,
-  });
-
-  const columns: { label: string; signer: SignerInfo }[] = [
-    { label: "Tim Design", signer: params.design },
-    { label: "Tim Produk", signer: params.produk },
-    { label: "Purchasing", signer: params.purchasing },
+  const columns: { roleLabel: string; signer: SignerInfo }[] = [
+    { roleLabel: "Design", signer: params.design },
+    { roleLabel: "Product", signer: params.produk },
+    { roleLabel: "Purchasing", signer: params.purchasing },
   ];
 
+  // Pita merah nama (fill dulu sebelum garis/border supaya rapi)
+  const nameRowTop = sigTop - ttdRowHeight;
+  page.drawRectangle({
+    x: marginX,
+    y: nameRowTop - nameRowHeight,
+    width: contentWidth,
+    height: nameRowHeight,
+    color: RED,
+  });
+
   for (let i = 0; i < columns.length; i++) {
-    const { label, signer } = columns[i];
+    const { roleLabel, signer } = columns[i];
     const colX = marginX + i * colWidth;
     const embedded = await embedSigner(pdfDoc, signer);
 
+    // Area TTD (gambar tanda tangan atau placeholder teks)
     if (embedded) {
       const { image, dims } = embedded;
       const maxW = colWidth - 24;
-      const maxH = ttdAreaHeight - 24;
+      const maxH = ttdRowHeight - 20;
       const scale = Math.min(maxW / dims.width, maxH / dims.height, 1);
       const w = dims.width * scale;
       const h = dims.height * scale;
       page.drawImage(image, {
         x: colX + (colWidth - w) / 2,
-        y: sigBoxTop - ttdAreaHeight / 2 - h / 2,
+        y: sigTop - ttdRowHeight / 2 - h / 2,
         width: w,
         height: h,
       });
     } else {
       const placeholder = "TTD";
-      const size = 16;
+      const size = 15;
       const pw = fontRegular.widthOfTextAtSize(placeholder, size);
       page.drawText(placeholder, {
         x: colX + (colWidth - pw) / 2,
-        y: sigBoxTop - ttdAreaHeight / 2 - size / 3,
+        y: sigTop - ttdRowHeight / 2 - size / 3,
         size,
         font: fontRegular,
         color: rgb(0.15, 0.15, 0.15),
       });
     }
 
-    const labelSize = 14;
-    const labelWidth = fontBold.widthOfTextAtSize(label, labelSize);
-    page.drawText(label, {
-      x: colX + (colWidth - labelWidth) / 2,
-      y: sigBoxTop - signatureBoxHeight + (labelBandHeight - labelSize) / 2 + 2,
-      size: labelSize,
+    // Pita merah: nama + (Role)
+    const nameText = `${signer.name || "-"} (${roleLabel})`;
+    const nameSize = 11.5;
+    let displayName = nameText;
+    while (
+      fontBold.widthOfTextAtSize(displayName, nameSize) > colWidth - 12 &&
+      displayName.length > 4
+    ) {
+      displayName = displayName.slice(0, -2);
+    }
+    const nameWidth = fontBold.widthOfTextAtSize(displayName, nameSize);
+    page.drawText(displayName, {
+      x: colX + (colWidth - nameWidth) / 2,
+      y: nameRowTop - nameRowHeight / 2 - nameSize / 3,
+      size: nameSize,
       font: fontBold,
-      color: rgb(0.05, 0.05, 0.05),
+      color: rgb(1, 1, 1),
+    });
+
+    // Tanggal approve masing-masing role
+    const dateText = `Tanggal: ${signer.date ?? "-"}`;
+    const dateSize = 9.5;
+    let displayDate = dateText;
+    while (
+      fontRegular.widthOfTextAtSize(displayDate, dateSize) > colWidth - 12 &&
+      displayDate.length > 10
+    ) {
+      displayDate = displayDate.slice(0, -2);
+    }
+    page.drawText(displayDate, {
+      x: colX + 8,
+      y: nameRowTop - nameRowHeight - dateRowHeight / 2 - dateSize / 3,
+      size: dateSize,
+      font: fontRegular,
+      color: BLACK,
     });
   }
 
-  // Garis pembatas vertikal antar kolom (tembus dari atas kotak sampai bawah pita abu-abu)
+  // Garis vertikal antar kolom (tembus 3 baris)
   for (let i = 1; i < 3; i++) {
     const lineX = marginX + i * colWidth;
     page.drawLine({
-      start: { x: lineX, y: sigBoxTop },
-      end: { x: lineX, y: sigBoxTop - signatureBoxHeight },
+      start: { x: lineX, y: sigTop },
+      end: { x: lineX, y: sigTop - sigTableHeight },
       thickness: 1,
-      color: rgb(0.1, 0.1, 0.1),
+      color: BLACK,
     });
   }
-
-  // Garis pembatas horizontal antara area TTD dan pita label
+  // Garis horizontal antar baris (TTD / nama / tanggal)
   page.drawLine({
-    start: { x: marginX, y: sigBoxTop - ttdAreaHeight },
-    end: { x: marginX + contentWidth, y: sigBoxTop - ttdAreaHeight },
+    start: { x: marginX, y: nameRowTop },
+    end: { x: marginX + contentWidth, y: nameRowTop },
     thickness: 1,
-    color: rgb(0.1, 0.1, 0.1),
+    color: BLACK,
+  });
+  page.drawLine({
+    start: { x: marginX, y: nameRowTop - nameRowHeight },
+    end: { x: marginX + contentWidth, y: nameRowTop - nameRowHeight },
+    thickness: 0.5,
+    color: BLACK,
+  });
+  // Border luar
+  page.drawRectangle({
+    x: marginX,
+    y: sigTop - sigTableHeight,
+    width: contentWidth,
+    height: sigTableHeight,
+    borderColor: BLACK,
+    borderWidth: 1.2,
   });
 
-  // Border luar rounded, digambar terakhir supaya menutup rapi sudut kotak
-  drawRoundedBox(page, marginX, sigBoxTop, contentWidth, signatureBoxHeight, 14);
-
+  // =========================================================
   // 5. Disclaimer merah miring, paling bawah
+  // =========================================================
   const disclaimer =
     "*Seluruh Bubuhan TTD harus bisa dipertanggung jawabkan ketika terjadi sesuatu dimasa mendatang";
-  const disclaimerY = sigBoxTop - signatureBoxHeight - 22;
+  const disclaimerY = sigTop - sigTableHeight - 20;
   const disclaimerLines = wrapText(disclaimer, fontItalic, 10, contentWidth);
   let dY = disclaimerY;
   for (const line of disclaimerLines) {
@@ -280,7 +391,7 @@ export async function generateApprovalSheetPdf(
       y: dY,
       size: 10,
       font: fontItalic,
-      color: rgb(0.8, 0.08, 0.08),
+      color: RED,
     });
     dY -= 13;
   }

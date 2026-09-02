@@ -57,10 +57,15 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReadyToPrint]);
 
+  // Nama file asli (sebelum ada stempel apapun) selalu ada di path tetap ini,
+  // terlepas dari artwork.file_url yang sudah ketiban versi ber-stempel di tiap
+  // tahap approval. Inilah yang harus dikirim ke vendor cetak — bukan yang ber-TTD.
+  const originalCleanPath = `${artwork.id}/v${artwork.version}.pdf`;
+
   async function handleDownload() {
     setDownloading(true);
     try {
-      const url = await getSignedUrl(artwork.file_url);
+      const url = await getSignedUrl(originalCleanPath);
       window.open(url, "_blank");
     } finally {
       setDownloading(false);
@@ -220,17 +225,19 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
 
       async function toSignerInfo(log: any): Promise<SignerInfo> {
         const name = log?.actor?.full_name ?? "-";
-        if (!log?.signature_url) return { name };
+        const date = log?.signed_at ? format(new Date(log.signed_at), "d MMM yyyy HH:mm") : undefined;
+        if (!log?.signature_url) return { name, date };
         try {
           const url = await getSignedUrl(log.signature_url, 3600, SIGNATURE_BUCKET);
           const bytes = await fetch(url).then((r) => r.arrayBuffer());
           return {
             name,
+            date,
             signatureBytes: bytes,
             signatureExt: log.signature_url.endsWith(".jpg") ? "jpg" : "png",
           };
         } catch {
-          return { name };
+          return { name, date };
         }
       }
 
@@ -240,8 +247,11 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
         toSignerInfo(printedLog),
       ]);
 
-      const finalUrl = await getSignedUrl(artwork.file_url);
+      // Preview di lembar approval harus file ASLI bersih (bukan yang sudah
+      // ada stempel/coretan), karena TTD sudah punya kolom sendiri di lembar ini.
+      const finalUrl = await getSignedUrl(originalCleanPath);
       const finalPdfBytes = await fetch(finalUrl).then((r) => r.arrayBuffer());
+      const logoBytes = await fetch("/logo-sansico-medica.png").then((r) => r.arrayBuffer());
 
       const printDate = printedLog?.signed_at
         ? format(new Date(printedLog.signed_at), "d MMM yyyy HH:mm")
@@ -254,6 +264,8 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
         design,
         produk,
         purchasing,
+        logoBytes,
+        logoExt: "png",
       });
 
       const sheetPath = `${artwork.id}/v${artwork.version}-approval-sheet.pdf`;
@@ -285,9 +297,9 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
       <button
         onClick={handleDownload}
         disabled={downloading}
-        className="self-start border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider hover:border-proof hover:text-proof disabled:opacity-50"
+        className="self-start border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
       >
-        {downloading ? "Membuka…" : "Unduh PDF (Sudah ACC Produk)"}
+        {downloading ? "Membuka…" : "Unduh PDF Bersih (untuk Vendor)"}
       </button>
 
       {isReadyToPrint && (

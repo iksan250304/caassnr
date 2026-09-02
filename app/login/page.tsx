@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,11 +32,17 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-halftone bg-halftone opacity-40" />
       <div className="regmark ticket relative z-10 w-full max-w-sm p-8">
         <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center border border-ink text-lg font-mono">
-            +
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden">
+            <Image
+              src="/icon-sansico.png"
+              alt="Sansico Medica"
+              width={44}
+              height={44}
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
-            <p className="font-display text-lg leading-none">CAAS</p>
+            <p className="font-display text-lg leading-none">Sansico Medica Login</p>
             <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-inkfaint">
               Content Approval Artwork System
             </p>

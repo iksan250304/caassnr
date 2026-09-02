@@ -21,7 +21,7 @@ export default async function ProdukPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="font-display text-2xl">Meja Produk</h1>
+        <h1 className="font-display text-2xl">Panel Produk</h1>
         <p className="mt-1 font-mono text-xs text-inkfaint">
           Ulas antrean, tandai revisi, atau berikan ACC untuk meneruskan ke Purchasing.
         </p>

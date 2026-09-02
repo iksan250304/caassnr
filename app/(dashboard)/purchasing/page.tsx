@@ -21,7 +21,7 @@ export default async function PurchasingPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="font-display text-2xl">Meja Purchasing</h1>
+        <h1 className="font-display text-2xl">Panel Purchasing</h1>
         <p className="mt-1 font-mono text-xs text-inkfaint">
           Unduh artwork yang sudah di-ACC dan naikkan ke proses cetak.
         </p>

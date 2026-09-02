@@ -11,6 +11,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "SanSign",
   description: "Alur persetujuan artwork digital: Design → Produk → Purchasing",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
