@@ -15,6 +15,7 @@ import PdfReviewer, { PdfReviewerHandle } from "./PdfReviewer";
 import StatusBadge from "./StatusBadge";
 import SignatureUploadField from "./SignatureUploadField";
 import { format } from "date-fns";
+import { notifyRole, notifyUser } from "@/lib/notifications";
 
 export default function ProductReviewClient({
   artwork,
@@ -169,6 +170,13 @@ export default function ProductReviewClient({
         signature_url: signaturePath,
       });
 
+      await notifyRole(
+        "purchasing",
+        "ready_to_print",
+        `${reviewer.name} menyetujui artwork: ${artwork.title}`,
+        artwork.id
+      );
+
       router.push("/produk");
       router.refresh();
     } catch (err: any) {
@@ -207,6 +215,13 @@ export default function ProductReviewClient({
         feedback_notes: feedback,
         annotated_pdf_url: markupPath,
       });
+
+      await notifyUser(
+        artwork.created_by,
+        "revision_needed",
+        `${reviewer.name} meminta revisi untuk: ${artwork.title}`,
+        artwork.id
+      );
 
       router.push("/produk");
       router.refresh();

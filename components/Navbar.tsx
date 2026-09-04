@@ -5,6 +5,7 @@ import { Role } from "@/lib/types";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import NotificationBell from "./NotificationBell";
 
 const SECTION_TITLE: Record<string, string> = {
   "/design": "Meja Desain",
@@ -23,9 +24,11 @@ const ADMIN_SWITCHER_LINKS: { href: string; label: string }[] = [
 export default function Navbar({
   role,
   fullName,
+  userId,
 }: {
   role: Role;
   fullName: string;
+  userId: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,7 +58,7 @@ export default function Navbar({
           </div>
           <div>
             <p className="font-display text-sm tracking-tight text-ink">
-              Content Approval Sansico Medica
+              CAAS
             </p>
             <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
               {title}
@@ -84,7 +87,8 @@ export default function Navbar({
           </nav>
         )}
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {role !== "admin" && <NotificationBell userId={userId} role={role} />}
           <span className="hidden font-mono text-xs text-inkfaint sm:inline">
             {fullName}
           </span>

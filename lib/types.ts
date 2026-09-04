@@ -18,6 +18,7 @@ export interface Profile {
   full_name: string;
   role: Role;
   signature_url: string | null;
+  last_notifications_seen_at?: string;
   created_at: string;
   email?: string;
   deactivated?: boolean;
@@ -74,6 +75,23 @@ export interface ApprovalLog {
   signature_url: string | null;
   signed_at: string;
   actor?: Profile;
+}
+
+export type NotificationType =
+  | "new_submission"
+  | "resubmitted"
+  | "revision_needed"
+  | "ready_to_print"
+  | "reminder";
+
+export interface AppNotification {
+  id: string;
+  target_role: Role | null;
+  recipient_id: string | null;
+  artwork_id: string | null;
+  type: NotificationType;
+  message: string;
+  created_at: string;
 }
 
 export const STATUS_LABEL: Record<ArtworkStatus, string> = {

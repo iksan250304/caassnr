@@ -25,7 +25,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-paper">
-      <Navbar role={profile.role as Role} fullName={profile.full_name} />
+      <Navbar role={profile.role as Role} fullName={profile.full_name} userId={user.id} />
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
     </div>
   );

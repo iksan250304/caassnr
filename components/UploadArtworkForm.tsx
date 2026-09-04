@@ -15,6 +15,7 @@ import { Category, CATEGORY_CODE, CATEGORY_LABEL } from "@/lib/types";
 import { CHECKLIST_ITEMS, CHECKLIST_REQUIRED_CATEGORIES } from "@/lib/checklist";
 import { format } from "date-fns";
 import SignatureUploadField from "./SignatureUploadField";
+import { notifyRole } from "@/lib/notifications";
 
 function stripExtension(name: string) {
   return name.replace(/\.pdf$/i, "");
@@ -190,6 +191,13 @@ export default function UploadArtworkForm({
           feedback_notes: ["Pengajuan artwork baru.", "", ...noteLines].join("\n"),
           signature_url: signaturePath,
         });
+
+        await notifyRole(
+          "product",
+          "new_submission",
+          `${signerName || "Tim Design"} mengajukan artwork baru: ${title}`,
+          id
+        );
       } else if (mode === "revise" && artwork) {
         const nextVersion = artwork.version + 1;
         const path = `${artwork.id}/v${nextVersion}.pdf`;
@@ -214,6 +222,13 @@ export default function UploadArtworkForm({
           feedback_notes: [`Revisi v${nextVersion} diunggah.`, "", ...noteLines].join("\n"),
           signature_url: signaturePath,
         });
+
+        await notifyRole(
+          "product",
+          "resubmitted",
+          `${signerName || "Tim Design"} mengirim revisi v${nextVersion}: ${title}`,
+          artwork.id
+        );
       }
 
       setFile(null);

@@ -18,7 +18,8 @@
     "pdfjs-dist": "3.11.174",
     "pdf-lib": "^1.17.1",
     "date-fns": "^3.6.0",
-    "clsx": "^2.1.1"
+    "clsx": "^2.1.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
@@ -27,6 +28,7 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.2"
+    "typescript": "^5.5.2",
+    "@types/web-push": "^3.6.4"
   }
 }
