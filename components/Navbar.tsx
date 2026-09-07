@@ -8,9 +8,9 @@ import Image from "next/image";
 import NotificationBell from "./NotificationBell";
 
 const SECTION_TITLE: Record<string, string> = {
-  "/design": "Meja Desain",
-  "/produk": "Meja Produk",
-  "/purchasing": "Meja Purchasing",
+  "/design": "Panel Desain",
+  "/produk": "Panel Produk",
+  "/purchasing": "Panel Purchasing",
   "/admin": "Panel Admin",
 };
 
@@ -35,7 +35,7 @@ export default function Navbar({
   const supabase = createClient();
 
   const currentSection = "/" + (pathname?.split("/")[1] ?? "");
-  const title = SECTION_TITLE[currentSection] ?? SECTION_TITLE["/" + role] ?? "CAAS";
+  const title = SECTION_TITLE[currentSection] ?? SECTION_TITLE["/" + role] ?? "Content Approval Sansico Medica";
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -58,7 +58,7 @@ export default function Navbar({
           </div>
           <div>
             <p className="font-display text-sm tracking-tight text-ink">
-              CAAS
+              Content Approval Sansico Medica
             </p>
             <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
               {title}

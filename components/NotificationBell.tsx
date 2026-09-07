@@ -152,6 +152,13 @@ export default function NotificationBell({
         return;
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
+
+      // Buang subscription lama (kalau ada) supaya selalu dapat subscription
+      // baru yang pasti valid — subscription lama bisa saja sudah kedaluwarsa
+      // di sisi Google/Mozilla walau browser masih menganggapnya ada.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
       if (!vapidKey) throw new Error("VAPID key belum diatur di environment.");
       const sub = await reg.pushManager.subscribe({
@@ -224,6 +231,21 @@ export default function NotificationBell({
                   className="font-mono text-[10px] uppercase tracking-wider text-proof hover:underline disabled:opacity-50"
                 >
                   {pushBusy ? "Mengaktifkan…" : "🔔 Aktifkan Notifikasi Desktop"}
+                </button>
+              </div>
+            )}
+            {pushStatus === "on" && (
+              <div className="border-b border-ink/10 bg-approve/5 px-4 py-2 flex items-center justify-between">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-approve">
+                  ✓ Notifikasi Desktop Aktif
+                </span>
+                <button
+                  onClick={handleEnablePush}
+                  disabled={pushBusy}
+                  className="font-mono text-[10px] uppercase tracking-wider text-inkfaint hover:text-ink disabled:opacity-50"
+                  title="Buat ulang subscription kalau notif tiba-tiba berhenti masuk"
+                >
+                  {pushBusy ? "Memperbarui…" : "Perbarui"}
                 </button>
               </div>
             )}

@@ -21,10 +21,12 @@ export default function ProductReviewClient({
   artwork,
   signedUrl,
   reviewer,
+  returnedByPurchasing,
 }: {
   artwork: Artwork;
   signedUrl: string;
   reviewer: { name: string; role: string };
+  returnedByPurchasing?: { actorName: string; note: string } | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -259,6 +261,18 @@ export default function ProductReviewClient({
         <p className="font-mono text-[11px] text-inkfaint">
           Diajukan oleh {artwork.creator?.full_name}
         </p>
+
+        {returnedByPurchasing && (
+          <div className="border border-press bg-press/5 px-3 py-2.5">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-press">
+              ↩ Dikembalikan oleh Purchasing
+            </p>
+            <p className="mt-1 text-sm text-ink">{returnedByPurchasing.note}</p>
+            <p className="mt-1 font-mono text-[10px] text-inkfaint">
+              — {returnedByPurchasing.actorName}
+            </p>
+          </div>
+        )}
 
         <button
           onClick={handleDownload}

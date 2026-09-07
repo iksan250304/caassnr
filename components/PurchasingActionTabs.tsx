@@ -7,9 +7,11 @@ import PurchasingItem from "./PurchasingItem";
 export default function PurchasingActionTabs({
   ready,
   history,
+  isAdmin,
 }: {
   ready: Artwork[];
   history: Artwork[];
+  isAdmin?: boolean;
 }) {
   const [tab, setTab] = useState<"siap" | "riwayat">("siap");
   const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
@@ -86,7 +88,7 @@ export default function PurchasingActionTabs({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             {ready.map((artwork) => (
-              <PurchasingItem key={artwork.id} artwork={artwork} />
+              <PurchasingItem key={artwork.id} artwork={artwork} isAdmin={isAdmin} />
             ))}
           </div>
         </div>
@@ -135,7 +137,7 @@ export default function PurchasingActionTabs({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredHistory.map((artwork) => (
-              <PurchasingItem key={artwork.id} artwork={artwork} />
+              <PurchasingItem key={artwork.id} artwork={artwork} isAdmin={isAdmin} />
             ))}
           </div>
         </div>

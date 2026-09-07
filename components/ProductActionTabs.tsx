@@ -1,15 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Artwork, Category, CATEGORY_LABEL } from "@/lib/types";
+import { Artwork, ApprovalLog, Category, CATEGORY_LABEL } from "@/lib/types";
 import ArtworkTicket from "./ArtworkTicket";
+import AdminArtworkControls from "./AdminArtworkControls";
 
 export default function ProductActionTabs({
   queue,
   history,
+  isAdmin,
+  returnedMap,
 }: {
   queue: Artwork[];
   history: Artwork[];
+  isAdmin?: boolean;
+  returnedMap?: Record<string, ApprovalLog>;
 }) {
   const [tab, setTab] = useState<"antrean" | "riwayat">("antrean");
   const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
@@ -34,7 +39,7 @@ export default function ProductActionTabs({
           onClick={() => setTab("antrean")}
           style={
             tab === "antrean"
-              ? { backgroundColor: "#c31f1f", color: "#FFFFFF", borderColor: "#c31f1f" }
+              ? { backgroundColor: "#B8791E", color: "#FFFFFF", borderColor: "#B8791E" }
               : { backgroundColor: "#FFFFFF", color: "#1A1A1A", borderColor: "rgba(26,26,26,0.2)" }
           }
           className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition"
@@ -45,7 +50,7 @@ export default function ProductActionTabs({
               style={
                 tab === "antrean"
                   ? { backgroundColor: "rgba(255,255,255,0.3)", color: "#FFFFFF" }
-                  : { backgroundColor: "#b31b1b", color: "#FFFFFF" }
+                  : { backgroundColor: "#B8791E", color: "#FFFFFF" }
               }
               className="rounded-full px-1.5 py-0.5 text-[10px]"
             >
@@ -119,14 +124,25 @@ export default function ProductActionTabs({
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
-            {filteredQueue.map((artwork) => (
-              <ArtworkTicket
-                key={artwork.id}
-                artwork={artwork}
-                href={`/produk/${artwork.id}`}
-                actionLabel="Review"
-              />
-            ))}
+            {filteredQueue.map((artwork) => {
+              const returned = returnedMap?.[artwork.id];
+              return (
+                <div key={artwork.id} className="flex flex-col gap-2">
+                  {returned && (
+                    <p className="border border-press/40 bg-press/5 px-3 py-2 font-mono text-[11px] text-press">
+                      ↩ Dikembalikan Purchasing ({(returned as any).actor?.full_name ?? "Purchasing"}):{" "}
+                      {returned.feedback_notes}
+                    </p>
+                  )}
+                  <ArtworkTicket
+                    artwork={artwork}
+                    href={`/produk/${artwork.id}`}
+                    actionLabel="Review"
+                  />
+                  {isAdmin && <AdminArtworkControls artwork={artwork} />}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -140,7 +156,10 @@ export default function ProductActionTabs({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             {history.map((artwork) => (
-              <ArtworkTicket key={artwork.id} artwork={artwork} />
+              <div key={artwork.id} className="flex flex-col gap-2">
+                <ArtworkTicket artwork={artwork} />
+                {isAdmin && <AdminArtworkControls artwork={artwork} />}
+              </div>
             ))}
           </div>
         </div>

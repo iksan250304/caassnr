@@ -16,13 +16,24 @@ import SignatureUploadField from "./SignatureUploadField";
 import { format } from "date-fns";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { generateApprovalSheetPdf, SignerInfo } from "@/lib/generateApprovalSheet";
+import AdminArtworkControls from "./AdminArtworkControls";
+import { notifyRole } from "@/lib/notifications";
 
-export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
+export default function PurchasingItem({
+  artwork,
+  isAdmin,
+}: {
+  artwork: Artwork;
+  isAdmin?: boolean;
+}) {
   const router = useRouter();
   const supabase = createClient();
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [printingSheet, setPrintingSheet] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnNote, setReturnNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const [savedSignaturePath, setSavedSignaturePath] = useState<string | null>(null);
@@ -279,6 +290,57 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
     }
   }
 
+  async function handleReturnToProduk() {
+    setError(null);
+    if (!returnNote.trim()) {
+      setError("Tuliskan alasan/kesalahan yang ditemukan sebelum mengembalikan ke Produk.");
+      return;
+    }
+    setReturning(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sesi berakhir.");
+
+      // Kembalikan ke antrean Produk dengan file ASLI bersih (bukan versi
+      // ber-stempel ACC), supaya Produk me-review ulang dari file yang bersih.
+      const { error: updateError } = await supabase
+        .from("artworks")
+        .update({ status: "pending_product", file_url: originalCleanPath })
+        .eq("id", artwork.id);
+      if (updateError) throw updateError;
+
+      await supabase.from("approval_logs").insert({
+        artwork_id: artwork.id,
+        actor_id: user.id,
+        action: "returned_by_purchasing",
+        feedback_notes: returnNote,
+      });
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      await notifyRole(
+        "product",
+        "revision_needed",
+        `${profile?.full_name ?? "Tim Purchasing"} menemukan kesalahan dan mengembalikan: ${artwork.title}`,
+        artwork.id
+      );
+
+      setShowReturnForm(false);
+      setReturnNote("");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message ?? "Gagal mengembalikan artwork ke Produk.");
+    } finally {
+      setReturning(false);
+    }
+  }
+
   return (
     <div className="regmark ticket flex flex-col gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -332,6 +394,52 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
       )}
 
       {isReadyToPrint && (
+        <div className="flex flex-col gap-2 border-t border-dashed border-ink/15 pt-3">
+          {!showReturnForm ? (
+            <button
+              onClick={() => setShowReturnForm(true)}
+              className="self-start border border-press/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-press hover:bg-press/5"
+            >
+              Tolak & Kembalikan ke Produk
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <label className="flex flex-col gap-1.5">
+                <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
+                  Kesalahan yang ditemukan
+                </span>
+                <textarea
+                  value={returnNote}
+                  onChange={(e) => setReturnNote(e.target.value)}
+                  rows={3}
+                  className="border border-press/40 bg-white px-3 py-2 text-sm outline-none focus:border-press"
+                  placeholder="Contoh: Ukuran dieline beda dari spesifikasi vendor, ada typo di komposisi."
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleReturnToProduk}
+                  disabled={returning}
+                  className="bg-press px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-paper hover:opacity-90 disabled:opacity-50"
+                >
+                  {returning ? "Mengirim…" : "Kirim ke Produk"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowReturnForm(false);
+                    setReturnNote("");
+                  }}
+                  className="border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-inkfaint hover:text-ink"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isReadyToPrint && (
         <button
           onClick={handleNaikCetak}
           disabled={busy}
@@ -340,6 +448,8 @@ export default function PurchasingItem({ artwork }: { artwork: Artwork }) {
           {busy ? "Memproses…" : "Naik Cetak"}
         </button>
       )}
+
+      {isAdmin && <AdminArtworkControls artwork={artwork} />}
     </div>
   );
 }

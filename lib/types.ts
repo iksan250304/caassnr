@@ -11,7 +11,8 @@ export type ApprovalAction =
   | "submitted"
   | "approved"
   | "rejected"
-  | "sent_to_print";
+  | "sent_to_print"
+  | "returned_by_purchasing";
 
 export interface Profile {
   id: string;

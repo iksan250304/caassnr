@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Artwork, ApprovalLog } from "@/lib/types";
 import ArtworkTicket from "./ArtworkTicket";
+import AdminArtworkControls from "./AdminArtworkControls";
 import { getSignedUrl } from "@/lib/storage";
-import { createClient } from "@/lib/supabase/client";
 
 export default function DesignArtworkItem({
   artwork,
@@ -16,11 +15,7 @@ export default function DesignArtworkItem({
   latestFeedback?: ApprovalLog;
   isAdmin?: boolean;
 }) {
-  const router = useRouter();
-  const supabase = createClient();
   const [openingMarkup, setOpeningMarkup] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleViewMarkup() {
     if (!latestFeedback?.annotated_pdf_url) return;
@@ -33,41 +28,11 @@ export default function DesignArtworkItem({
     }
   }
 
-  async function handleDelete() {
-    if (!confirm(`Hapus artwork "${artwork.title}"? Tindakan tidak dapat dibatalkan.`)) return;
-    setDeleting(true);
-    setError(null);
-    const { error } = await supabase.from("artworks").delete().eq("id", artwork.id);
-    if (error) {
-      setError(error.message);
-      setDeleting(false);
-      return;
-    }
-    router.refresh();
-  }
-
   return (
     <div className="flex flex-col gap-3">
       <ArtworkTicket artwork={artwork} />
 
-      {isAdmin && (
-        <div className="flex items-center gap-3">
-          {artwork.status === "printed" ? (
-            <span className="font-mono text-[10px] uppercase tracking-wider text-inkfaint">
-              Terkunci (sudah naik cetak, tidak bisa dihapus)
-            </span>
-          ) : (
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="font-mono text-[10px] uppercase tracking-wider text-press hover:underline disabled:opacity-50"
-            >
-              {deleting ? "Menghapus…" : "Hapus Artwork (Admin)"}
-            </button>
-          )}
-          {error && <span className="font-mono text-[10px] text-press">{error}</span>}
-        </div>
-      )}
+      {isAdmin && <AdminArtworkControls artwork={artwork} />}
 
       {artwork.status === "rejected_product" && (
         <div className="ml-1 flex flex-col gap-2 border-l-2 border-press/40 pl-4">
