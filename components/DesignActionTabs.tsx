@@ -8,17 +8,20 @@ import DesignArtworkItem from "./DesignArtworkItem";
 import { getSignedUrl } from "@/lib/storage";
 
 type RevisionEntry = { artwork: Artwork; feedback?: ApprovalLog };
+type SubmittedInfo = { name: string; at: string };
 
 export default function DesignActionTabs({
   revisionQueue,
   history,
   feedbackMap,
   isAdmin,
+  submittedByMap,
 }: {
   revisionQueue: RevisionEntry[];
   history: Artwork[];
   feedbackMap: Record<string, ApprovalLog>;
   isAdmin?: boolean;
+  submittedByMap?: Record<string, SubmittedInfo>;
 }) {
   const [tab, setTab] = useState<"upload" | "revisi" | "riwayat">("upload");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -87,41 +90,52 @@ export default function DesignActionTabs({
               Tidak ada artwork yang perlu direvisi saat ini.
             </p>
           )}
-          {revisionQueue.map(({ artwork, feedback }) => (
-            <div key={artwork.id} className="flex flex-col gap-3">
-              <ArtworkTicket artwork={artwork} />
-              <div className="ml-1 flex flex-col gap-3 border-l-2 border-press/40 pl-4">
-                {feedback?.feedback_notes && (
-                  <p className="whitespace-pre-line font-mono text-xs text-press">
-                    Catatan revisi: {feedback.feedback_notes}
+          {revisionQueue.map(({ artwork, feedback }) => {
+            const submittedBy = submittedByMap?.[artwork.id];
+            return (
+              <div key={artwork.id} className="flex flex-col gap-3">
+                <ArtworkTicket artwork={artwork} />
+                {submittedBy && (
+                  <p className="-mt-2 ml-1 font-mono text-[10px] uppercase tracking-wider text-inkfaint">
+                    Terakhir dikirim oleh: <span className="text-ink">{submittedBy.name}</span>
+                    {artwork.creator?.full_name && artwork.creator.full_name !== submittedBy.name && (
+                      <> · Pengunggah asli: {artwork.creator.full_name}</>
+                    )}
                   </p>
                 )}
-                {feedback?.annotated_pdf_url && (
-                  <button
-                    onClick={() => handleViewMarkup(feedback)}
-                    disabled={openingMarkupId === feedback.id}
-                    className="self-start border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider hover:border-proof hover:text-proof disabled:opacity-50"
-                  >
-                    {openingMarkupId === feedback.id ? "Membuka…" : "Lihat Coretan Tim Produk"}
-                  </button>
-                )}
-                {openId !== artwork.id ? (
-                  <button
-                    onClick={() => setOpenId(artwork.id)}
-                    className="self-start border border-press/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-press hover:bg-press/5"
-                  >
-                    Revisi Sekarang
-                  </button>
-                ) : (
-                  <UploadArtworkForm
-                    mode="revise"
-                    artwork={artwork}
-                    onDone={() => setOpenId(null)}
-                  />
-                )}
+                <div className="ml-1 flex flex-col gap-3 border-l-2 border-press/40 pl-4">
+                  {feedback?.feedback_notes && (
+                    <p className="whitespace-pre-line font-mono text-xs text-press">
+                      Catatan revisi: {feedback.feedback_notes}
+                    </p>
+                  )}
+                  {feedback?.annotated_pdf_url && (
+                    <button
+                      onClick={() => handleViewMarkup(feedback)}
+                      disabled={openingMarkupId === feedback.id}
+                      className="self-start border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider hover:border-proof hover:text-proof disabled:opacity-50"
+                    >
+                      {openingMarkupId === feedback.id ? "Membuka…" : "Lihat Coretan Tim Produk"}
+                    </button>
+                  )}
+                  {openId !== artwork.id ? (
+                    <button
+                      onClick={() => setOpenId(artwork.id)}
+                      className="self-start border border-press/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-press hover:bg-press/5"
+                    >
+                      Revisi Sekarang
+                    </button>
+                  ) : (
+                    <UploadArtworkForm
+                      mode="revise"
+                      artwork={artwork}
+                      onDone={() => setOpenId(null)}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -138,6 +152,7 @@ export default function DesignActionTabs({
               artwork={artwork}
               latestFeedback={feedbackMap[artwork.id]}
               isAdmin={isAdmin}
+              submittedBy={submittedByMap?.[artwork.id]}
             />
           ))}
         </div>

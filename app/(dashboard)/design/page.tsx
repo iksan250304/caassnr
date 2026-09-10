@@ -15,13 +15,12 @@ export default async function DesignPage() {
     .single();
   const isAdmin = profile?.role === "admin";
 
-  // Admin melihat & bisa mengelola artwork SEMUA orang, bukan cuma miliknya sendiri.
-  let query = supabase
+  // Seluruh tim Design melihat artwork SATU SAMA LAIN (bukan cuma milik sendiri),
+  // supaya kalau satu orang berhalangan, yang lain bisa bantu cek/revisi.
+  const { data: artworks } = await supabase
     .from("artworks")
     .select("*, creator:created_by(id, full_name, role)")
     .order("created_at", { ascending: false });
-  if (!isAdmin) query = query.eq("created_by", user!.id);
-  const { data: artworks } = await query;
 
   const rejectedIds = (artworks ?? [])
     .filter((a) => a.status === "rejected_product")
@@ -40,6 +39,28 @@ export default async function DesignPage() {
     }
   }
 
+  // Siapa yang TERAKHIR benar-benar kirim/revisi tiap artwork — bisa beda dari
+  // pengunggah pertama (artwork.creator) kalau rekan lain yang bantu revisi.
+  // Penting untuk jejak audit karena tim saling bisa bantu sekarang.
+  const allIds = (artworks ?? []).map((a) => a.id);
+  let submittedByMap: Record<string, { name: string; at: string }> = {};
+  if (allIds.length) {
+    const { data: submittedLogs } = await supabase
+      .from("approval_logs")
+      .select("artwork_id, signed_at, actor:actor_id(full_name)")
+      .in("artwork_id", allIds)
+      .eq("action", "submitted")
+      .order("signed_at", { ascending: false });
+    for (const log of submittedLogs ?? []) {
+      if (!submittedByMap[log.artwork_id]) {
+        submittedByMap[log.artwork_id] = {
+          name: (log as any).actor?.full_name ?? "-",
+          at: log.signed_at,
+        };
+      }
+    }
+  }
+
   const history = (artworks as Artwork[] | null) ?? [];
   const revisionQueue = history
     .filter((a) => a.status === "rejected_product")
@@ -48,11 +69,11 @@ export default async function DesignPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="font-display text-2xl">Panel Desain</h1>
+        <h1 className="font-display text-2xl">Meja Desain</h1>
         <p className="mt-1 font-mono text-xs text-inkfaint">
           {isAdmin
             ? "Mode admin — menampilkan artwork dari seluruh tim Design."
-            : "Ajukan artwork baru dan pantau statusnya sampai naik cetak."}
+            : "Ajukan artwork baru, atau bantu cek/revisi punya rekan satu tim."}
         </p>
       </div>
 
@@ -61,6 +82,7 @@ export default async function DesignPage() {
         history={history}
         feedbackMap={feedbackMap}
         isAdmin={isAdmin}
+        submittedByMap={submittedByMap}
       />
     </div>
   );
