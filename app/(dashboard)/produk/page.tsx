@@ -48,7 +48,7 @@ export default async function ProdukPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl">Meja Produk</h1>
+          <h1 className="font-display text-2xl">Panel Produk</h1>
           <p className="mt-1 font-mono text-xs text-inkfaint">
             {isAdmin
               ? "Mode admin — bisa edit/hapus artwork mana pun (kecuali sudah naik cetak)."

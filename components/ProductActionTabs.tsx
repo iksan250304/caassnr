@@ -39,7 +39,7 @@ export default function ProductActionTabs({
           onClick={() => setTab("antrean")}
           style={
             tab === "antrean"
-              ? { backgroundColor: "#B8791E", color: "#FFFFFF", borderColor: "#B8791E" }
+              ? { backgroundColor: "#b81e1e", color: "#FFFFFF", borderColor: "#ffffff" }
               : { backgroundColor: "#FFFFFF", color: "#1A1A1A", borderColor: "rgba(26,26,26,0.2)" }
           }
           className="flex items-center gap-2 border px-4 py-2 font-mono text-xs uppercase tracking-wider transition"
@@ -50,7 +50,7 @@ export default function ProductActionTabs({
               style={
                 tab === "antrean"
                   ? { backgroundColor: "rgba(255,255,255,0.3)", color: "#FFFFFF" }
-                  : { backgroundColor: "#B8791E", color: "#FFFFFF" }
+                  : { backgroundColor: "#b81e1e", color: "#FFFFFF" }
               }
               className="rounded-full px-1.5 py-0.5 text-[10px]"
             >
