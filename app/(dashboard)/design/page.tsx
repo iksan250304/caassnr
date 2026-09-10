@@ -69,7 +69,7 @@ export default async function DesignPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="font-display text-2xl">Meja Desain</h1>
+        <h1 className="font-display text-2xl">Panel Desain</h1>
         <p className="mt-1 font-mono text-xs text-inkfaint">
           {isAdmin
             ? "Mode admin — menampilkan artwork dari seluruh tim Design."
