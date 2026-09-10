@@ -10,10 +10,12 @@ export default function DesignArtworkItem({
   artwork,
   latestFeedback,
   isAdmin,
+  submittedBy,
 }: {
   artwork: Artwork;
   latestFeedback?: ApprovalLog;
   isAdmin?: boolean;
+  submittedBy?: { name: string; at: string };
 }) {
   const [openingMarkup, setOpeningMarkup] = useState(false);
 
@@ -31,6 +33,15 @@ export default function DesignArtworkItem({
   return (
     <div className="flex flex-col gap-3">
       <ArtworkTicket artwork={artwork} />
+
+      {submittedBy && (
+        <p className="-mt-2 ml-1 font-mono text-[10px] uppercase tracking-wider text-inkfaint">
+          Terakhir dikirim (v{artwork.version}) oleh: <span className="text-ink">{submittedBy.name}</span>
+          {artwork.creator?.full_name && artwork.creator.full_name !== submittedBy.name && (
+            <> · Pengunggah asli: {artwork.creator.full_name}</>
+          )}
+        </p>
+      )}
 
       {isAdmin && <AdminArtworkControls artwork={artwork} />}
 

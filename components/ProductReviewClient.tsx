@@ -282,6 +282,15 @@ export default function ProductReviewClient({
           {downloading ? "Membuka…" : "Unduh PDF dari Design"}
         </button>
 
+        <a
+          href="https://drive.google.com/drive/folders/1VphrOv8CqYyzyi5s1d0V0PvrH-8ZarH5"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="self-start border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper"
+        >
+          Buka Google Drive
+        </a>
+
         {!alreadyDecided ? (
           <>
             <label className="flex flex-col gap-1.5">
