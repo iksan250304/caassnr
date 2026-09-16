@@ -14,51 +14,27 @@ body {
   font-family: var(--font-body);
 }
 
-/* Registration / crop mark — the signature motif, borrowed from the press room.
-   Printers use these crosshairs to align color plates; here they mark where
-   an artwork's approval state is "locked in". */
-.regmark {
-  position: relative;
-}
-.regmark::before,
-.regmark::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border: 1px solid currentColor;
-  opacity: 0.35;
-}
-.regmark::before {
-  top: -1px;
-  left: -1px;
-  border-right: none;
-  border-bottom: none;
-}
-.regmark::after {
-  bottom: -1px;
-  right: -1px;
-  border-left: none;
-  border-top: none;
-}
-
+/* Glassmorphism: kartu putih semi-transparan + blur, duduk di atas background
+   gradient merah supaya warnanya tetap "nembus" samar di belakang kartu. */
 .ticket {
-  background: #FFFFFF;
-  border: 1px solid rgba(26, 26, 26, 0.14);
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2px solid rgb(255, 255, 255);
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 32px rgba(200, 16, 46, 0.08), 0 1px 3px rgba(26, 26, 26, 0.04);
 }
 
 .ticket-perf {
-  background-image: radial-gradient(
-    circle,
-    #FFFFFF 3px,
-    transparent 3.5px
-  );
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.65) 3px, transparent 3.5px);
   background-size: 14px 14px;
   background-position: -7px center;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 ::selection {
-  background: #C8102E;
+  background: #1c1b1b;
   color: #FFFFFF;
 }
 

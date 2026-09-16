@@ -162,19 +162,22 @@ export default function AdminUserManager() {
         </p>
         <button
           onClick={() => setShowForm((s) => !s)}
-          className="border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider hover:border-proof hover:text-proof"
+          className="rounded-xl border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider hover:border-proof hover:text-proof"
         >
           {showForm ? "Batal" : "+ Tambah User"}
         </button>
       </div>
 
       {error && (
-        <p className="border border-press/30 bg-press/5 px-3 py-2 font-mono text-xs text-press">
+        <p className="rounded-xl border border-press/30 bg-press/5 px-3 py-2 font-mono text-xs" style={{ color: "#7A1116" }}>
           {error}
         </p>
       )}
       {notice && (
-        <p className="whitespace-pre-line border border-amber/30 bg-amber/5 px-3 py-2 font-mono text-xs text-amber">
+        <p
+          className="whitespace-pre-line rounded-xl border px-3 py-2 font-mono text-xs"
+          style={{ borderColor: "rgba(184,121,30,0.4)", backgroundColor: "rgba(184,121,30,0.06)", color: "#8A5A14" }}
+        >
           {notice}
         </p>
       )}
@@ -186,12 +189,12 @@ export default function AdminUserManager() {
             placeholder="Nama lengkap"
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            className="border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
+            className="rounded-xl border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
           />
           <select
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
-            className="border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
+            className="rounded-xl border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
           >
             {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
               <option key={r} value={r}>
@@ -205,7 +208,7 @@ export default function AdminUserManager() {
             placeholder="Email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
+            className="rounded-xl border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
           />
           <input
             required
@@ -214,12 +217,12 @@ export default function AdminUserManager() {
             minLength={6}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
+            className="rounded-xl border border-ink/20 bg-white px-3 py-2 text-sm outline-none focus:border-proof"
           />
           <button
             type="submit"
             disabled={submitting}
-            className="sm:col-span-2 bg-ink py-2.5 font-mono text-xs uppercase tracking-widest text-paper hover:bg-proofdark disabled:opacity-50"
+            className="rounded-xl bg-ink py-2.5 font-mono text-xs uppercase tracking-widest text-paper hover:bg-proofdark disabled:opacity-50 sm:col-span-2"
           >
             {submitting ? "Membuat…" : "Buat Akun"}
           </button>
@@ -253,11 +256,12 @@ export default function AdminUserManager() {
                             if (e.key === "Enter") saveEditName(u.id, u.role);
                             if (e.key === "Escape") setEditingId(null);
                           }}
-                          className="border border-proof bg-white px-2 py-1 text-sm outline-none"
+                          className="rounded-lg border border-proof bg-white px-2 py-1 text-sm outline-none"
                         />
                         <button
                           onClick={() => saveEditName(u.id, u.role)}
-                          className="font-mono text-xs uppercase text-approve hover:underline"
+                          style={{ color: "#2F6F4F" }}
+                          className="font-mono text-xs uppercase hover:underline"
                         >
                           Simpan
                         </button>
@@ -271,7 +275,7 @@ export default function AdminUserManager() {
                     ) : (
                       <button
                         onClick={() => startEditName(u)}
-                        className="text-left hover:underline"
+                        className="text-left text-ink hover:underline"
                         title="Klik untuk ubah nama"
                       >
                         {u.full_name}
@@ -279,7 +283,7 @@ export default function AdminUserManager() {
                     )}
 
                     {resettingId === u.id && (
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         <input
                           autoFocus
                           type="text"
@@ -290,11 +294,13 @@ export default function AdminUserManager() {
                             if (e.key === "Enter") saveResetPassword(u.id, u.full_name);
                             if (e.key === "Escape") setResettingId(null);
                           }}
-                          className="border border-amber bg-white px-2 py-1 font-mono text-xs outline-none"
+                          style={{ borderColor: "#B8791E" }}
+                          className="rounded-lg border bg-white px-2 py-1 font-mono text-xs outline-none"
                         />
                         <button
                           onClick={() => saveResetPassword(u.id, u.full_name)}
-                          className="font-mono text-xs uppercase text-approve hover:underline"
+                          style={{ color: "#2F6F4F" }}
+                          className="font-mono text-xs uppercase hover:underline"
                         >
                           Ganti
                         </button>
@@ -310,10 +316,8 @@ export default function AdminUserManager() {
                   <td className="px-4 py-3">
                     <select
                       value={u.role}
-                      onChange={(e) =>
-                        handleRoleChange(u.id, e.target.value as Role, u.full_name)
-                      }
-                      className="border border-ink/20 bg-white px-2 py-1 font-mono text-xs"
+                      onChange={(e) => handleRoleChange(u.id, e.target.value as Role, u.full_name)}
+                      className="rounded-lg border border-ink/20 bg-white px-2 py-1 font-mono text-xs"
                     >
                       {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
                         <option key={r} value={r}>
@@ -324,36 +328,41 @@ export default function AdminUserManager() {
                   </td>
                   <td className="px-4 py-3">
                     {u.deactivated ? (
-                      <span className="font-mono text-[10px] uppercase tracking-wider text-press">
+                      <span style={{ color: "#7A1116" }} className="font-mono text-[10px] uppercase tracking-wider">
                         Nonaktif
                       </span>
                     ) : (
-                      <span className="font-mono text-[10px] uppercase tracking-wider text-approve">
+                      <span style={{ color: "#2F6F4F" }} className="font-mono text-[10px] uppercase tracking-wider">
                         Aktif
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right space-x-3 whitespace-nowrap">
-                    {u.deactivated && (
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+                      {u.deactivated && (
+                        <button
+                          onClick={() => handleReactivate(u.id)}
+                          style={{ color: "#C8102E" }}
+                          className="whitespace-nowrap font-mono text-xs uppercase tracking-wider hover:underline"
+                        >
+                          Aktifkan
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleReactivate(u.id)}
-                        className="font-mono text-xs uppercase tracking-wider text-proof hover:underline"
+                        onClick={() => startReset(u.id)}
+                        style={{ color: "#8A5A14" }}
+                        className="whitespace-nowrap font-mono text-xs uppercase tracking-wider hover:underline"
                       >
-                        Aktifkan
+                        Reset Sandi
                       </button>
-                    )}
-                    <button
-                      onClick={() => startReset(u.id)}
-                      className="font-mono text-xs uppercase tracking-wider text-amber hover:underline"
-                    >
-                      Reset Sandi
-                    </button>
-                    <button
-                      onClick={() => handleDelete(u.id)}
-                      className="font-mono text-xs uppercase tracking-wider text-press hover:underline"
-                    >
-                      Hapus
-                    </button>
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        style={{ color: "#7A1116" }}
+                        className="whitespace-nowrap font-mono text-xs uppercase tracking-wider hover:underline"
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

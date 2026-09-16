@@ -1,25 +1,14 @@
-import { createClient } from "@/lib/supabase/server";
-import AdminTabs from "@/components/AdminTabs";
+import AdminUserManager from "@/components/AdminUserManager";
 
-export default async function AdminPage() {
-  const supabase = createClient();
-
-  const { data: logs } = await supabase
-    .from("approval_logs")
-    .select("*, actor:actor_id(full_name, role), artwork:artwork_id(title, status)")
-    .order("signed_at", { ascending: false })
-    .limit(50);
-
+export default function AdminPage() {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-display text-2xl">Panel Admin</h1>
-        <p className="mt-1 font-mono text-xs text-inkfaint">
-          Kelola akses pengguna dan pantau seluruh audit trail persetujuan.
-        </p>
+        <h1 className="font-display text-3xl text-ink">Pengguna</h1>
+        <p className="mt-1 text-sm text-inkfaint">Kelola akses pengguna seluruh tim.</p>
       </div>
 
-      <AdminTabs logs={(logs as any[]) ?? []} />
+      <AdminUserManager />
     </div>
   );
 }

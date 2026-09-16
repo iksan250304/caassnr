@@ -45,6 +45,8 @@ export default function UploadArtworkForm({
   const [category, setCategory] = useState<Category | "">(artwork?.category ?? "");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [signed, setSigned] = useState(false);
   const [signerName, setSignerName] = useState("");
@@ -96,6 +98,38 @@ export default function UploadArtworkForm({
 
   const canSubmit =
     !!file && !!effectiveCategory && checklistComplete && signed && hasSignatureReady && !loading;
+
+  function applyFile(f: File | null) {
+    setFileError(null);
+    if (!f) {
+      setFile(null);
+      return;
+    }
+    const validationError = validatePdf(f);
+    if (validationError) {
+      setFileError(validationError);
+      setFile(null);
+      return;
+    }
+    setFile(f);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = e.dataTransfer.files?.[0] ?? null;
+    applyFile(dropped);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -298,17 +332,48 @@ export default function UploadArtworkForm({
         </label>
       )}
 
-      <label className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
           File PDF (maks. 10 MB)
         </span>
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="border border-dashed border-ink/25 bg-white px-3 py-2 text-sm file:mr-3 file:border-0 file:bg-ink file:px-3 file:py-1.5 file:font-mono file:text-xs file:uppercase file:text-paper"
-        />
-      </label>
+        <label
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          className={`flex cursor-pointer flex-col items-center justify-center gap-2 border-2 border-dashed px-4 py-8 text-center transition-colors ${
+            isDragging
+              ? "border-sky-500 bg-sky-50"
+              : "border-slate-300 bg-white hover:border-slate-400"
+          }`}
+        >
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => applyFile(e.target.files?.[0] ?? null)}
+            className="hidden"
+          />
+          {file ? (
+            <>
+              <span className="font-mono text-sm text-slate-700">{file.name}</span>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-slate-400">
+                Klik atau seret file lain untuk mengganti
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="bg-slate-800 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-white">
+                Pilih File
+              </span>
+              <span className="font-mono text-[11px] text-slate-500">
+                atau seret &amp; lepas file PDF di sini
+              </span>
+            </>
+          )}
+        </label>
+        {fileError && (
+          <p className="font-mono text-[11px] text-rose-600">{fileError}</p>
+        )}
+      </div>
 
       {computedTitle && (
         <p className="font-mono text-[11px] text-inkfaint">

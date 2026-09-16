@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import ProductActionTabs from "@/components/ProductActionTabs";
-import { Artwork, ApprovalLog } from "@/lib/types";
+import ProductQueueList from "@/components/ProductQueueList";
+import { ApprovalLog, Artwork } from "@/lib/types";
 
 export default async function ProdukPage() {
   const supabase = createClient();
@@ -21,15 +21,6 @@ export default async function ProdukPage() {
     .eq("status", "pending_product")
     .order("created_at", { ascending: true });
 
-  const { data: history } = await supabase
-    .from("artworks")
-    .select("*, creator:created_by(id, full_name, role)")
-    .in("status", ["approved_product", "rejected_product", "printed"])
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  // Tandai item antrean yang sebenarnya "kiriman balik" dari Purchasing karena
-  // ditemukan kesalahan, supaya Produk tahu ini bukan pengajuan baru biasa.
   const queueIds = (queue ?? []).map((a) => a.id);
   let returnedMap: Record<string, ApprovalLog> = {};
   if (queueIds.length) {
@@ -45,11 +36,11 @@ export default async function ProdukPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl">Panel Produk</h1>
-          <p className="mt-1 font-mono text-xs text-inkfaint">
+          <h1 className="font-display text-3xl text-ink">Antrean Review</h1>
+          <p className="mt-1 text-sm text-inkfaint">
             {isAdmin
               ? "Mode admin — bisa edit/hapus artwork mana pun (kecuali sudah naik cetak)."
               : "Ulas antrean, tandai revisi, atau berikan ACC untuk meneruskan ke Purchasing."}
@@ -59,15 +50,14 @@ export default async function ProdukPage() {
           href="https://drive.google.com/drive/folders/1VphrOv8CqYyzyi5s1d0V0PvrH-8ZarH5"
           target="_blank"
           rel="noopener noreferrer"
-          className="border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink transition hover:bg-ink hover:text-paper"
+          className="rounded-xl border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink transition hover:bg-ink hover:text-paper"
         >
           Buka Google Drive
         </a>
       </div>
 
-      <ProductActionTabs
+      <ProductQueueList
         queue={(queue as Artwork[] | null) ?? []}
-        history={(history as Artwork[] | null) ?? []}
         isAdmin={isAdmin}
         returnedMap={returnedMap}
       />
