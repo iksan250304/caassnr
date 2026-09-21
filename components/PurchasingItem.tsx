@@ -42,7 +42,11 @@ export default function PurchasingItem({
 
   const isReadyToPrint = artwork.status === "approved_product";
 
-  // Ambil TTD tersimpan milik user Purchasing yang login (kalau ada).
+  // File asli (sebelum ada stempel apapun) selalu ada di path tetap ini,
+  // terlepas dari artwork.file_url yang sudah ketiban versi ber-stempel di tiap
+  // tahap approval. Inilah yang harus dikirim ke vendor cetak — bukan yang ber-TTD.
+  const originalCleanPath = `${artwork.id}/v${artwork.version}.pdf`;
+
   useEffect(() => {
     if (!isReadyToPrint) return;
     (async () => {
@@ -68,15 +72,17 @@ export default function PurchasingItem({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReadyToPrint]);
 
-  // Nama file asli (sebelum ada stempel apapun) selalu ada di path tetap ini,
-  // terlepas dari artwork.file_url yang sudah ketiban versi ber-stempel di tiap
-  // tahap approval. Inilah yang harus dikirim ke vendor cetak — bukan yang ber-TTD.
-  const originalCleanPath = `${artwork.id}/v${artwork.version}.pdf`;
-
   async function handleDownload() {
     setDownloading(true);
     try {
-      const url = await getSignedUrl(originalCleanPath);
+      // Nama asli (judul artwork) di depan, kode versi generik ditaruh di
+      // belakang sebagai penanda — bukan sebaliknya.
+      const url = await getSignedUrl(
+        originalCleanPath,
+        3600,
+        "artworks",
+        `${artwork.title} - v${artwork.version}.pdf`
+      );
       window.open(url, "_blank");
     } finally {
       setDownloading(false);
@@ -202,6 +208,57 @@ export default function PurchasingItem({
     }
   }
 
+  async function handleReturnToProduk() {
+    setError(null);
+    if (!returnNote.trim()) {
+      setError("Tuliskan alasan/kesalahan yang ditemukan sebelum mengembalikan ke Produk.");
+      return;
+    }
+    setReturning(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sesi berakhir.");
+
+      // Kembalikan ke antrean Produk dengan file ASLI bersih (bukan versi
+      // ber-stempel ACC), supaya Produk me-review ulang dari file yang bersih.
+      const { error: updateError } = await supabase
+        .from("artworks")
+        .update({ status: "pending_product", file_url: originalCleanPath })
+        .eq("id", artwork.id);
+      if (updateError) throw updateError;
+
+      await supabase.from("approval_logs").insert({
+        artwork_id: artwork.id,
+        actor_id: user.id,
+        action: "returned_by_purchasing",
+        feedback_notes: returnNote,
+      });
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      await notifyRole(
+        "product",
+        "revision_needed",
+        `${profile?.full_name ?? "Tim Purchasing"} menemukan kesalahan dan mengembalikan: ${artwork.title}`,
+        artwork.id
+      );
+
+      setShowReturnForm(false);
+      setReturnNote("");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message ?? "Gagal mengembalikan artwork ke Produk.");
+    } finally {
+      setReturning(false);
+    }
+  }
+
   async function handleCetakApproval() {
     setError(null);
     setPrintingSheet(true);
@@ -281,7 +338,12 @@ export default function PurchasingItem({
 
       const sheetPath = `${artwork.id}/v${artwork.version}-approval-sheet.pdf`;
       await uploadPdf(sheetPath, new Blob([sheetBytes as BlobPart], { type: "application/pdf" }));
-      const sheetUrl = await getSignedUrl(sheetPath);
+      const sheetUrl = await getSignedUrl(
+        sheetPath,
+        3600,
+        "artworks",
+        `Approval - ${artwork.title} - v${artwork.version}.pdf`
+      );
       window.open(sheetUrl, "_blank");
     } catch (err: any) {
       setError(err.message ?? "Gagal membuat lembar approval.");
@@ -290,59 +352,8 @@ export default function PurchasingItem({
     }
   }
 
-  async function handleReturnToProduk() {
-    setError(null);
-    if (!returnNote.trim()) {
-      setError("Tuliskan alasan/kesalahan yang ditemukan sebelum mengembalikan ke Produk.");
-      return;
-    }
-    setReturning(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sesi berakhir.");
-
-      // Kembalikan ke antrean Produk dengan file ASLI bersih (bukan versi
-      // ber-stempel ACC), supaya Produk me-review ulang dari file yang bersih.
-      const { error: updateError } = await supabase
-        .from("artworks")
-        .update({ status: "pending_product", file_url: originalCleanPath })
-        .eq("id", artwork.id);
-      if (updateError) throw updateError;
-
-      await supabase.from("approval_logs").insert({
-        artwork_id: artwork.id,
-        actor_id: user.id,
-        action: "returned_by_purchasing",
-        feedback_notes: returnNote,
-      });
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-
-      await notifyRole(
-        "product",
-        "revision_needed",
-        `${profile?.full_name ?? "Tim Purchasing"} menemukan kesalahan dan mengembalikan: ${artwork.title}`,
-        artwork.id
-      );
-
-      setShowReturnForm(false);
-      setReturnNote("");
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message ?? "Gagal mengembalikan artwork ke Produk.");
-    } finally {
-      setReturning(false);
-    }
-  }
-
   return (
-    <div className="regmark ticket flex flex-col gap-3 p-5">
+    <div className="ticket flex flex-col gap-3 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
@@ -359,10 +370,66 @@ export default function PurchasingItem({
       <button
         onClick={handleDownload}
         disabled={downloading}
-        className="self-start border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
+        className="self-start rounded-xl border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
       >
         {downloading ? "Membuka…" : "Unduh PDF Bersih (untuk Vendor)"}
       </button>
+
+      {artwork.status === "printed" && (
+        <button
+          onClick={handleCetakApproval}
+          disabled={printingSheet}
+          className="self-start rounded-xl border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
+        >
+          {printingSheet ? "Menyusun Lembar…" : "Cetak Lembar Approval"}
+        </button>
+      )}
+
+      {isReadyToPrint && (
+        <div className="flex flex-col gap-2 border-t border-dashed border-ink/15 pt-3">
+          {!showReturnForm ? (
+            <button
+              onClick={() => setShowReturnForm(true)}
+              className="self-start rounded-xl border border-press/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-press hover:bg-press/5"
+            >
+              Tolak & Kembalikan ke Produk
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <label className="flex flex-col gap-1.5">
+                <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
+                  Kesalahan yang ditemukan
+                </span>
+                <textarea
+                  value={returnNote}
+                  onChange={(e) => setReturnNote(e.target.value)}
+                  rows={3}
+                  className="rounded-xl border border-press/40 bg-white px-3 py-2 text-sm outline-none focus:border-press"
+                  placeholder="Contoh: Ukuran dieline beda dari spesifikasi vendor, ada typo di komposisi."
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleReturnToProduk}
+                  disabled={returning}
+                  className="rounded-xl bg-press px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-paper hover:opacity-90 disabled:opacity-50"
+                >
+                  {returning ? "Mengirim…" : "Kirim ke Produk"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowReturnForm(false);
+                    setReturnNote("");
+                  }}
+                  className="rounded-xl border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-inkfaint hover:text-ink"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {isReadyToPrint && (
         <div className="flex flex-col gap-2 border-t border-dashed border-ink/15 pt-3">
@@ -378,72 +445,16 @@ export default function PurchasingItem({
       )}
 
       {error && (
-        <p className="border border-press/30 bg-press/5 px-3 py-2 font-mono text-xs text-press">
+        <p className="rounded-xl border border-press/30 bg-press/5 px-3 py-2 font-mono text-xs text-press">
           {error}
         </p>
-      )}
-
-      {artwork.status === "printed" && (
-        <button
-          onClick={handleCetakApproval}
-          disabled={printingSheet}
-          className="self-start border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
-        >
-          {printingSheet ? "Menyusun Lembar…" : "Cetak Lembar Approval"}
-        </button>
-      )}
-
-      {isReadyToPrint && (
-        <div className="flex flex-col gap-2 border-t border-dashed border-ink/15 pt-3">
-          {!showReturnForm ? (
-            <button
-              onClick={() => setShowReturnForm(true)}
-              className="self-start border border-press/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-press hover:bg-press/5"
-            >
-              Tolak & Kembalikan ke Produk
-            </button>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <label className="flex flex-col gap-1.5">
-                <span className="font-mono text-[11px] uppercase tracking-wider text-inkfaint">
-                  Kesalahan yang ditemukan
-                </span>
-                <textarea
-                  value={returnNote}
-                  onChange={(e) => setReturnNote(e.target.value)}
-                  rows={3}
-                  className="border border-press/40 bg-white px-3 py-2 text-sm outline-none focus:border-press"
-                  placeholder="Contoh: Ukuran dieline beda dari spesifikasi vendor, ada typo di komposisi."
-                />
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleReturnToProduk}
-                  disabled={returning}
-                  className="bg-press px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-paper hover:opacity-90 disabled:opacity-50"
-                >
-                  {returning ? "Mengirim…" : "Kirim ke Produk"}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowReturnForm(false);
-                    setReturnNote("");
-                  }}
-                  className="border border-ink/20 px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-inkfaint hover:text-ink"
-                >
-                  Batal
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       )}
 
       {isReadyToPrint && (
         <button
           onClick={handleNaikCetak}
           disabled={busy}
-          className="bg-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-paper hover:bg-proofdark disabled:opacity-50"
+          className="rounded-xl bg-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-paper hover:bg-proofdark disabled:opacity-50"
         >
           {busy ? "Memproses…" : "Naik Cetak"}
         </button>

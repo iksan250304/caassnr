@@ -19,15 +19,38 @@ export function validateSignatureImage(file: File): string | null {
   return null;
 }
 
+// Bikin nama file aman buat header Content-Disposition. Selain karakter yang
+// ilegal di nama file OS, kita juga buang tanda kurung/bracket/ampersand
+// supaya tidak ikut ter-percent-encode (mis. "[" jadi "%5B") — beberapa
+// browser/OS menampilkan hasil encode itu mentah-mentah alih-alih men-decode-nya.
+export function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[\\/:*?"<>|]/g, "-") // karakter ilegal di nama file OS
+    .replace(/[[\]{}]/g, "") // [ ] { } — mis. "[InnerBox]"
+    .replace(/[()]/g, "") // ( ) — mis. "(2026)"
+    .replace(/&/g, "dan") // & sering bikin masalah di beberapa parser header
+    .replace(/\s+/g, " ") // rapikan spasi ganda sisa penghapusan simbol
+    .trim();
+}
+
+/**
+ * @param downloadFilename Kalau diisi, browser akan menyimpan file dengan nama
+ * ini (mis. judul artwork) alih-alih nama path storage yang generik (v2.pdf dst).
+ */
 export async function getSignedUrl(
   path: string,
   expiresIn = 3600,
-  bucket: string = BUCKET
+  bucket: string = BUCKET,
+  downloadFilename?: string
 ) {
   const supabase = createClient();
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, expiresIn);
+    .createSignedUrl(
+      path,
+      expiresIn,
+      downloadFilename ? { download: sanitizeFilename(downloadFilename) } : undefined
+    );
   if (error) throw error;
   return data.signedUrl;
 }
