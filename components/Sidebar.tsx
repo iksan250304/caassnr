@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Role } from "@/lib/types";
 
@@ -32,6 +33,8 @@ const ICONS = {
   users: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
   audit: "M9 12h6M9 16h6M9 8h6M5 4h14a1 1 0 0 1 1 1v15l-3-2-3 2-3-2-3 2-3-2-3 2V5a1 1 0 0 1 1-1Z",
   logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  menu: "M4 6h16M4 12h16M4 18h16",
+  close: "M6 6l12 12M18 6L6 18",
 };
 
 const SECTION_NAV: Record<string, NavItem[]> = {
@@ -58,6 +61,12 @@ export default function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [open, setOpen] = useState(false);
+
+  // Tutup drawer otomatis setelah pindah halaman (di HP).
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   const currentSection = "/" + (pathname?.split("/")[1] ?? "");
   const items = SECTION_NAV[currentSection] ?? SECTION_NAV["/" + role] ?? [];
@@ -69,51 +78,85 @@ export default function Sidebar({ role }: { role: Role }) {
   }
 
   return (
-    <aside className="relative flex h-screen w-64 flex-shrink-0 flex-col overflow-hidden bg-gradient-to-br from-press/10 via-white to-white">
-      <div className="pointer-events-none absolute -left-10 -top-10 h-56 w-56 rounded-full bg-press/20 blur-3xl" />
+    <>
+      {/* Tombol hamburger: hanya tampil di HP */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Buka menu"
+        className="fixed left-3 top-3 z-40 rounded-xl border border-slate-200 bg-white/90 p-2 text-ink shadow-sm backdrop-blur lg:hidden"
+      >
+        <Icon d={ICONS.menu} />
+      </button>
 
-      <div className="relative flex flex-col gap-1 px-6 pt-8">
-        <div className="flex items-center gap-2">
-          <Image src="/icon-sansico.png" alt="Sansico Medica" width={28} height={28} className="h-7 w-7 object-contain" />
-          <p className="font-display text-base leading-none">
-            <span className="text-press">Sansico</span>
-            <span className="text-ink">Medica</span>
+      {/* Lapisan gelap di belakang drawer: klik untuk menutup */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-0 z-50 flex h-[100dvh] w-64 flex-shrink-0 flex-col overflow-hidden bg-white bg-gradient-to-br from-press/10 via-white to-white transition-transform duration-200 lg:sticky lg:z-auto lg:translate-x-0 lg:self-start lg:bg-transparent ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="pointer-events-none absolute -left-10 -top-10 h-56 w-56 rounded-full bg-press/20 blur-3xl" />
+
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Tutup menu"
+          className="absolute right-3 top-3 z-10 rounded-lg p-2 text-ink/60 hover:bg-ink/5 lg:hidden"
+        >
+          <Icon d={ICONS.close} />
+        </button>
+
+        <div className="relative flex flex-col gap-1 px-6 pt-8">
+          <div className="flex items-center gap-2">
+            <Image src="/icon-sansico.png" alt="Sansico Medica" width={28} height={28} className="h-7 w-7 object-contain" />
+            <p className="font-display text-base leading-none">
+              <span className="text-press">Sansico</span>
+              <span className="text-ink">Medica</span>
+            </p>
+          </div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
+            Content Approval System
           </p>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
-          Content Approval System
-        </p>
-      </div>
 
-      <nav className="relative mt-8 flex flex-1 flex-col gap-2 px-4">
-        {items.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
-                active
-                  ? "bg-gradient-to-r from-press to-pressdark text-white shadow-sm"
-                  : "text-press hover:bg-press/5"
-              }`}
-            >
-              {item.icon}
-              <span className={active ? "font-medium" : ""}>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="relative mt-8 flex flex-1 flex-col gap-2 overflow-y-auto px-4">
+          {items.map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+                  active
+                    ? "bg-gradient-to-r from-press to-pressdark text-white shadow-sm"
+                    : "text-press hover:bg-press/5"
+                }`}
+              >
+                {item.icon}
+                <span className={active ? "font-medium" : ""}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div className="relative px-4 pb-8">
-        <button
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-ink/70 transition hover:bg-ink/5 hover:text-ink"
-        >
-          <Icon d={ICONS.logout} />
-          <span className="font-mono text-xs uppercase tracking-wider">Log Out</span>
-        </button>
-      </div>
-    </aside>
+        <div className="relative px-4 pb-8">
+          <button
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm text-ink/70 transition hover:bg-ink/5 hover:text-ink"
+          >
+            <Icon d={ICONS.logout} />
+            <span className="font-mono text-xs uppercase tracking-wider">Log Out</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

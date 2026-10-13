@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ApprovalLog } from "@/lib/types";
 import { format } from "date-fns";
+import HistorySearchBar from "./HistorySearchBar";
 
 const ACTION_LABEL: Record<string, string> = {
   submitted: "Diajukan",
@@ -21,17 +22,44 @@ type LogRow = ApprovalLog & {
 
 export default function AdminAuditTrail({ logs }: { logs: LogRow[] }) {
   const [page, setPage] = useState(0);
+  const [query, setQuery] = useState("");
 
-  const sorted = [...logs].sort(
-    (a, b) => new Date(b.signed_at).getTime() - new Date(a.signed_at).getTime()
-  );
+  // Cari + urutkan dari yang terbaru.
+  const sorted = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? logs.filter((log) =>
+          [
+            log.artwork?.title ?? "",
+            ACTION_LABEL[log.action] ?? log.action,
+            log.actor?.full_name ?? "",
+            log.feedback_notes ?? "",
+          ].some((field) => field.toLowerCase().includes(q))
+        )
+      : logs;
+    return [...filtered].sort(
+      (a, b) => new Date(b.signed_at).getTime() - new Date(a.signed_at).getTime()
+    );
+  }, [logs, query]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const start = page * PAGE_SIZE;
+  const currentPage = Math.min(page, totalPages - 1);
+  const start = currentPage * PAGE_SIZE;
   const pageItems = sorted.slice(start, start + PAGE_SIZE);
+
+  function changeQuery(v: string) {
+    setQuery(v);
+    setPage(0);
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      <HistorySearchBar
+        value={query}
+        onChange={changeQuery}
+        placeholder="Cari artwork, aksi, atau nama pelaku…"
+      />
+
       <div className="ticket overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
@@ -60,7 +88,7 @@ export default function AdminAuditTrail({ logs }: { logs: LogRow[] }) {
             {!pageItems.length && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center font-mono text-xs text-inkfaint">
-                  Belum ada aktivitas.
+                  {query ? "Tidak ada aktivitas yang cocok dengan pencarian." : "Belum ada aktivitas."}
                 </td>
               </tr>
             )}
@@ -72,17 +100,17 @@ export default function AdminAuditTrail({ logs }: { logs: LogRow[] }) {
         <div className="flex items-center justify-between">
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
+            disabled={currentPage === 0}
             className="rounded-xl border border-ink/20 px-4 py-2 font-mono text-xs uppercase tracking-wider text-ink transition hover:border-ink disabled:opacity-30"
           >
             ← Previous
           </button>
           <span className="font-mono text-xs text-inkfaint">
-            Halaman {page + 1} / {totalPages}
+            Halaman {currentPage + 1} / {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={page >= totalPages - 1}
+            disabled={currentPage >= totalPages - 1}
             className="rounded-xl border border-ink/20 px-4 py-2 font-mono text-xs uppercase tracking-wider text-ink transition hover:border-ink disabled:opacity-30"
           >
             Next →

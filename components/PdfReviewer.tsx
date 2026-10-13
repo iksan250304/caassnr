@@ -40,7 +40,11 @@ export interface PdfReviewerHandle {
   hasMarkup: () => boolean;
 }
 
+// Lebar maksimum halaman (desktop). Di HP lebarnya otomatis menyesuaikan layar.
 const PAGE_WIDTH = 720;
+const MIN_PAGE_WIDTH = 240;
+
+const toolBtn = "border border-ink/20 px-3 py-2 sm:px-2 sm:py-1 disabled:opacity-30";
 
 const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
   function PdfReviewer({ fileUrl }, ref) {
@@ -48,10 +52,38 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
     const [pageIndex, setPageIndex] = useState(1);
     const [drawing, setDrawing] = useState(false);
     const [zoom, setZoom] = useState(1);
+    const [baseWidth, setBaseWidth] = useState(PAGE_WIDTH);
+    // "draw" = jari/mouse menggambar coretan, "pan" = jari menggulir dokumen
+    const [mode, setMode] = useState<"draw" | "pan">("draw");
     const [pageSize, setPageSize] = useState({ width: PAGE_WIDTH, height: 960 });
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const scrollRef = useRef<HTMLDivElement | null>(null);
     // dataURL snapshot of each page's markup layer, keyed by page number
     const pageDrawings = useRef<Record<number, string>>({});
+
+    // Perangkat sentuh mulai dari mode Geser supaya dokumen bisa di-scroll;
+    // pindah ke mode Coret lewat tombol saat mau menandai revisi.
+    useEffect(() => {
+      if (window.matchMedia("(pointer: coarse)").matches) setMode("pan");
+    }, []);
+
+    // Sesuaikan lebar halaman PDF dengan lebar area yang tersedia (penting di HP).
+    useEffect(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const measure = () => {
+        const cs = getComputedStyle(el);
+        const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+        const available = Math.floor(el.clientWidth - pad);
+        if (available > 0) {
+          setBaseWidth(Math.max(MIN_PAGE_WIDTH, Math.min(PAGE_WIDTH, available)));
+        }
+      };
+      measure();
+      const observer = new ResizeObserver(measure);
+      observer.observe(el);
+      return () => observer.disconnect();
+    }, []);
 
     const saveCurrentCanvas = useCallback(() => {
       const canvas = canvasRef.current;
@@ -98,6 +130,8 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
     }
 
     function startDraw(e: React.PointerEvent<HTMLCanvasElement>) {
+      // Pointer capture: coretan tetap lanjut walau jari/kursor keluar tepi kanvas.
+      e.currentTarget.setPointerCapture(e.pointerId);
       setDrawing(true);
       const ctx = canvasRef.current?.getContext("2d");
       if (!ctx) return;
@@ -283,7 +317,7 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
             <button
               disabled={pageIndex <= 1}
               onClick={() => goToPage(pageIndex - 1)}
-              className="border border-ink/20 px-2 py-1 disabled:opacity-30"
+              className={toolBtn}
             >
               ← Hal
             </button>
@@ -293,9 +327,33 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
             <button
               disabled={pageIndex >= numPages}
               onClick={() => goToPage(pageIndex + 1)}
-              className="border border-ink/20 px-2 py-1 disabled:opacity-30"
+              className={toolBtn}
             >
               Hal →
+            </button>
+          </div>
+
+          {/* Mode sentuhan: Coret = gambar, Geser = scroll dokumen */}
+          <div
+            role="group"
+            aria-label="Mode sentuhan"
+            className="flex items-center overflow-hidden border border-ink/20"
+          >
+            <button
+              onClick={() => setMode("draw")}
+              className={`px-3 py-2 sm:px-2 sm:py-1 ${
+                mode === "draw" ? "bg-ink text-paper" : "text-ink"
+              }`}
+            >
+              Coret
+            </button>
+            <button
+              onClick={() => setMode("pan")}
+              className={`px-3 py-2 sm:px-2 sm:py-1 ${
+                mode === "pan" ? "bg-ink text-paper" : "text-ink"
+              }`}
+            >
+              Geser
             </button>
           </div>
 
@@ -303,22 +361,22 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
             <button
               onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
               disabled={zoom <= 0.5}
-              className="border border-ink/20 px-2 py-1 disabled:opacity-30"
+              className={toolBtn}
             >
-              − Zoom
+              −<span className="hidden sm:inline"> Zoom</span>
             </button>
             <span className="w-12 text-center">{Math.round(zoom * 100)}%</span>
             <button
               onClick={() => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
               disabled={zoom >= 2.5}
-              className="border border-ink/20 px-2 py-1 disabled:opacity-30"
+              className={toolBtn}
             >
-              + Zoom
+              +<span className="hidden sm:inline"> Zoom</span>
             </button>
             {zoom !== 1 && (
               <button
                 onClick={() => setZoom(1)}
-                className="border border-ink/20 px-2 py-1 text-inkfaint hover:text-ink"
+                className={`${toolBtn} text-inkfaint hover:text-ink`}
               >
                 Reset
               </button>
@@ -327,13 +385,16 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
 
           <button
             onClick={clearPage}
-            className="border border-press/30 px-2 py-1 text-press"
+            className="border border-press/30 px-3 py-2 text-press sm:px-2 sm:py-1"
           >
             Hapus Coretan Hal. Ini
           </button>
         </div>
 
-        <div className="max-h-[75vh] w-full overflow-auto border border-ink/10 bg-stock p-4">
+        <div
+          ref={scrollRef}
+          className="max-h-[70vh] w-full overflow-auto border border-ink/10 bg-stock p-2 [scrollbar-gutter:stable] sm:max-h-[75vh] sm:p-4"
+        >
           <div
             className="relative mx-auto border border-ink/15 bg-white shadow-sm"
             style={{ width: pageSize.width, height: pageSize.height }}
@@ -341,11 +402,11 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
             <Document file={fileUrl} onLoadSuccess={(d) => setNumPages(d.numPages)}>
               <Page
                 pageNumber={pageIndex}
-                width={PAGE_WIDTH * zoom}
+                width={baseWidth * zoom}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
                 onRenderSuccess={(page) => {
-                  const targetWidth = PAGE_WIDTH * zoom;
+                  const targetWidth = baseWidth * zoom;
                   const h = (page.height / page.width) * targetWidth;
                   setPageSize((prev) =>
                     prev.width === targetWidth && prev.height === h
@@ -363,18 +424,23 @@ const PdfReviewer = forwardRef<PdfReviewerHandle, { fileUrl: string }>(
                 width: pageSize.width,
                 height: pageSize.height,
                 zIndex: 10,
-                pointerEvents: "auto",
+                // Mode Geser: sentuhan diteruskan ke area scroll di belakang kanvas.
+                pointerEvents: mode === "draw" ? "auto" : "none",
               }}
-              className="absolute left-0 top-0 cursor-crosshair touch-none"
+              className={`absolute left-0 top-0 ${
+                mode === "draw" ? "cursor-crosshair touch-none" : ""
+              }`}
               onPointerDown={startDraw}
               onPointerMove={moveDraw}
               onPointerUp={endDraw}
+              onPointerCancel={endDraw}
               onPointerLeave={endDraw}
             />
           </div>
         </div>
-        <p className="font-mono text-[11px] text-inkfaint">
-          Coret langsung di atas dokumen untuk menandai revisi (tinta merah). Coretan tersimpan per halaman.
+        <p className="text-center font-mono text-[11px] text-inkfaint">
+          Mode Coret: gambar langsung di atas dokumen (tinta merah). Mode Geser: sentuh dan seret
+          untuk menggulir dokumen. Coretan tersimpan per halaman.
         </p>
       </div>
     );
