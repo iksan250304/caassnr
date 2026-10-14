@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deleteArtworkWithFiles } from "@/lib/deleteArtwork";
+import { getSignedUrl } from "@/lib/storage";
 import {
   Artwork,
   ArtworkStatus,
@@ -28,6 +29,9 @@ export default function AdminArtworkControls({ artwork }: { artwork: Artwork }) 
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: artwork.title,
@@ -37,14 +41,6 @@ export default function AdminArtworkControls({ artwork }: { artwork: Artwork }) 
   });
 
   const isPrinted = artwork.status === "printed";
-
-  if (isPrinted) {
-    return (
-      <p className="font-mono text-[10px] uppercase tracking-wider text-inkfaint">
-        Terkunci (sudah naik cetak) — tidak bisa diedit/dihapus
-      </p>
-    );
-  }
 
   async function handleSave() {
     setSaving(true);
@@ -68,9 +64,10 @@ export default function AdminArtworkControls({ artwork }: { artwork: Artwork }) 
   }
 
   async function handleDelete() {
+    const warning = isPrinted ? "File ini SUDAH NAIK CETAK. " : "";
     if (
       !confirm(
-        `Hapus artwork "${artwork.title}" beserta semua file PDF-nya dari storage? Tindakan tidak dapat dibatalkan.`
+        `${warning}Hapus artwork "${artwork.title}" beserta semua file PDF-nya dari storage? Tindakan tidak dapat dibatalkan.`
       )
     )
       return;
@@ -85,18 +82,85 @@ export default function AdminArtworkControls({ artwork }: { artwork: Artwork }) 
     router.refresh();
   }
 
+  // Batalkan Naik Cetak: file kembali ke Purchasing (tab Siap Cetak). Dari sana
+  // Purchasing mengembalikan ke Produk, lalu Produk ke Design untuk direvisi.
+  async function handleCancelPrint() {
+    setError(null);
+    if (!cancelNote.trim()) {
+      setError("Tuliskan alasan pembatalan naik cetak.");
+      return;
+    }
+    setCancelling(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sesi berakhir.");
+
+      // Pulihkan ke file versi ACC Produk (belum ada TTD Purchasing). Kalau memakai
+      // file print-ready, stempel Purchasing akan tertumpuk dua kali saat Naik Cetak ulang.
+      const approvedPath = `${artwork.id}/v${artwork.version}-approved.pdf`;
+      try {
+        await getSignedUrl(approvedPath, 60);
+      } catch {
+        throw new Error(
+          "File versi ACC Produk tidak ditemukan di storage, pembatalan dihentikan."
+        );
+      }
+
+      const { error: updateError } = await supabase
+        .from("artworks")
+        .update({ status: "approved_product", file_url: approvedPath })
+        .eq("id", artwork.id);
+      if (updateError) throw updateError;
+
+      const { error: logError } = await supabase.from("approval_logs").insert({
+        artwork_id: artwork.id,
+        actor_id: user.id,
+        action: "cancelled_by_admin",
+        feedback_notes: cancelNote.trim(),
+      });
+      if (logError) {
+        setError(
+          `Status sudah dikembalikan ke Purchasing, tetapi catatan audit gagal disimpan: ${logError.message}`
+        );
+        router.refresh();
+        return;
+      }
+
+      setCancelOpen(false);
+      setCancelNote("");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message ?? "Gagal membatalkan naik cetak.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2 border-t border-dashed border-ink/15 pt-2">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="font-mono text-[9px] uppercase tracking-widest text-inkfaint">
           Admin
         </span>
-        <button
-          onClick={() => setEditing((e) => !e)}
-          className="font-mono text-[10px] uppercase tracking-wider text-proof hover:underline"
-        >
-          {editing ? "Tutup Edit" : "Edit"}
-        </button>
+
+        {isPrinted ? (
+          <button
+            onClick={() => setCancelOpen((o) => !o)}
+            className="font-mono text-[10px] uppercase tracking-wider text-proof hover:underline"
+          >
+            {cancelOpen ? "Tutup" : "Batalkan Naik Cetak"}
+          </button>
+        ) : (
+          <button
+            onClick={() => setEditing((e) => !e)}
+            className="font-mono text-[10px] uppercase tracking-wider text-proof hover:underline"
+          >
+            {editing ? "Tutup Edit" : "Edit"}
+          </button>
+        )}
+
         <button
           onClick={handleDelete}
           disabled={deleting}
@@ -106,7 +170,29 @@ export default function AdminArtworkControls({ artwork }: { artwork: Artwork }) 
         </button>
       </div>
 
-      {editing && (
+      {isPrinted && cancelOpen && (
+        <div className="flex flex-col gap-2 rounded-xl border border-press/30 bg-press/5 p-3">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-press">
+            File kembali ke Purchasing (Siap Cetak), lalu diteruskan ke Produk dan Design.
+          </p>
+          <textarea
+            value={cancelNote}
+            onChange={(e) => setCancelNote(e.target.value)}
+            rows={2}
+            className="rounded-xl border border-press/40 bg-white px-2 py-1 text-sm outline-none focus:border-press"
+            placeholder="Alasan pembatalan, mis. file yang dikirim ke vendor salah."
+          />
+          <button
+            onClick={handleCancelPrint}
+            disabled={cancelling}
+            className="self-start rounded-xl bg-ink px-3 py-1.5 font-mono text-[10px] uppercase text-paper disabled:opacity-50"
+          >
+            {cancelling ? "Memproses…" : "Konfirmasi Pembatalan"}
+          </button>
+        </div>
+      )}
+
+      {!isPrinted && editing && (
         <div className="flex flex-col gap-2 border border-ink/15 bg-stock p-3">
           <input
             value={form.title}

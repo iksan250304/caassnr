@@ -79,15 +79,22 @@ export default function Sidebar({ role }: { role: Role }) {
 
   return (
     <>
-      {/* Tombol hamburger: hanya tampil di HP */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Buka menu"
-        className="fixed left-3 top-3 z-40 rounded-xl border border-slate-200 bg-white/90 p-2 text-ink shadow-sm backdrop-blur lg:hidden"
-      >
-        <Icon d={ICONS.menu} />
-      </button>
+{/* Bar atas khusus HP: hamburger + logo, menempel di atas halaman */}
+<header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-ink/10 bg-white/90 px-3 backdrop-blur lg:hidden">
+<button
+type="button"
+onClick={() => setOpen(true)}
+aria-label="Buka menu"
+className="rounded-xl p-2 text-ink hover:bg-ink/5"
+>
+<Icon d={ICONS.menu} />
+</button>
+<Image src="/icon-sansico.png" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+<p className="font-display text-base leading-none">
+<span className="text-press">Sansico</span>
+<span className="text-ink">Medica</span>
+</p>
+</header>
 
       {/* Lapisan gelap di belakang drawer: klik untuk menutup */}
       {open && (

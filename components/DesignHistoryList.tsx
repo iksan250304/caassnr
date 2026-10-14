@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Artwork, ApprovalLog } from "@/lib/types";
 import DesignArtworkItem from "./DesignArtworkItem";
 import HistorySearchBar from "./HistorySearchBar";
+import ArtworkPreviewModal from "./ArtworkPreviewModal";
 import { filterAndSortHistory } from "@/lib/historyFilter";
 
 const PAGE_SIZE = 4;
@@ -21,6 +22,7 @@ export default function DesignHistoryList({
 }) {
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState("");
+  const [preview, setPreview] = useState<Artwork | null>(null);
 
   // Cari + urutkan dari yang terbaru (file dobel/mirip: versi terbaru di atas).
   const sorted = useMemo(() => filterAndSortHistory(history, query), [history, query]);
@@ -33,6 +35,12 @@ export default function DesignHistoryList({
   function changeQuery(v: string) {
     setQuery(v);
     setPage(0);
+  }
+
+  // Klik pada tombol/link/input di dalam kartu tidak ikut membuka preview.
+  function openPreview(e: React.MouseEvent<HTMLDivElement>, artwork: Artwork) {
+    if ((e.target as HTMLElement).closest("button, a, input, textarea, select, label")) return;
+    setPreview(artwork);
   }
 
   if (!history.length) {
@@ -54,13 +62,19 @@ export default function DesignHistoryList({
       )}
 
       {pageItems.map((artwork) => (
-        <DesignArtworkItem
+        <div
           key={artwork.id}
-          artwork={artwork}
-          latestFeedback={feedbackMap[artwork.id]}
-          isAdmin={isAdmin}
-          submittedBy={submittedByMap[artwork.id]}
-        />
+          onClick={(e) => openPreview(e, artwork)}
+          title="Klik untuk melihat preview file"
+          className="cursor-pointer"
+        >
+          <DesignArtworkItem
+            artwork={artwork}
+            latestFeedback={feedbackMap[artwork.id]}
+            isAdmin={isAdmin}
+            submittedBy={submittedByMap[artwork.id]}
+          />
+        </div>
       ))}
 
       {totalPages > 1 && (
@@ -84,6 +98,8 @@ export default function DesignHistoryList({
           </button>
         </div>
       )}
+
+      {preview && <ArtworkPreviewModal artwork={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }

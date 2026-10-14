@@ -14,8 +14,9 @@ export default function ArtworkTicket({
 }) {
   const body = (
     <div className="regmark ticket relative flex flex-col gap-3 p-5 transition hover:border-ink/30">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      {/* HP: badge status di atas, judul di bawah. Layar lebar: sejajar, badge di kanan. */}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
               Job No. {artwork.id.slice(0, 8)} · v{artwork.version}
@@ -24,11 +25,14 @@ export default function ArtworkTicket({
               {CATEGORY_LABEL[artwork.category]}
             </span>
           </div>
-          <h3 className="mt-1 font-display text-base leading-tight text-ink">
+          <h3 className="mt-1 break-words font-display text-base leading-tight text-ink">
             {artwork.title}
           </h3>
         </div>
-        <StatusBadge status={artwork.status} />
+        <StatusBadge
+          status={artwork.status}
+          className="flex-shrink-0 whitespace-nowrap sm:whitespace-normal"
+        />
       </div>
       {artwork.description && (
         <p className="text-sm text-inkfaint">{artwork.description}</p>

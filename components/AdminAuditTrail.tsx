@@ -11,6 +11,7 @@ const ACTION_LABEL: Record<string, string> = {
   rejected: "Ditolak",
   sent_to_print: "Naik Cetak",
   returned_by_purchasing: "Dikembalikan Purchasing",
+  cancelled_by_admin: "Naik Cetak Dibatalkan Admin",
 };
 
 const PAGE_SIZE = 4;
