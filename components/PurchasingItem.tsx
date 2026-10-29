@@ -36,11 +36,16 @@ export default function PurchasingItem({
   const [returnNote, setReturnNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Gerbang sebelum Naik Cetak: file harus dibuka di Preview dulu, lalu dikonfirmasi.
+  const [previewed, setPreviewed] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+
   const [savedSignaturePath, setSavedSignaturePath] = useState<string | null>(null);
   const [savedSignaturePreview, setSavedSignaturePreview] = useState<string | null>(null);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
 
   const isReadyToPrint = artwork.status === "approved_product";
+  const isPrinted = artwork.status === "printed";
 
   // File asli (sebelum ada stempel apapun) selalu ada di path tetap ini,
   // terlepas dari artwork.file_url yang sudah ketiban versi ber-stempel di tiap
@@ -73,6 +78,8 @@ export default function PurchasingItem({
   }, [isReadyToPrint]);
 
   async function handleDownload() {
+    // Pengaman: unduhan untuk vendor hanya boleh setelah Naik Cetak.
+    if (!isPrinted) return;
     setDownloading(true);
     try {
       // Nama asli (judul artwork) di depan, kode versi generik ditaruh di
@@ -91,6 +98,10 @@ export default function PurchasingItem({
 
   async function handleNaikCetak() {
     setError(null);
+    if (!previewed || !confirmed) {
+      setError("Periksa file lewat Preview dan centang pernyataan sebelum Naik Cetak.");
+      return;
+    }
     if (!signatureFile && !savedSignaturePath) {
       setError("Unggah gambar tanda tangan (PNG/JPG) sebelum Naik Cetak.");
       return;
@@ -355,30 +366,51 @@ export default function PurchasingItem({
   return (
     <div className="ticket flex flex-col gap-3 p-5">
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-<div className="min-w-0">
+        <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-widest text-inkfaint">
             Job No. {artwork.id.slice(0, 8)} · v{artwork.version}
           </p>
-          <h3 className="mt-1 font-display text-base leading-tight">{artwork.title}</h3>
+          <h3 className="mt-1 break-words font-display text-base leading-tight">{artwork.title}</h3>
         </div>
         <StatusBadge
-status={artwork.status}
-className="flex-shrink-0 whitespace-nowrap sm:whitespace-normal"
-/>
+          status={artwork.status}
+          className="flex-shrink-0 whitespace-nowrap sm:whitespace-normal"
+        />
       </div>
       <p className="font-mono text-[11px] text-inkfaint">
         Diajukan oleh {artwork.creator?.full_name}
       </p>
 
-      <button
-        onClick={handleDownload}
-        disabled={downloading}
-        className="self-start rounded-xl border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
-      >
-        {downloading ? "Membuka…" : "Unduh PDF Bersih (untuk Vendor)"}
-      </button>
+      {/* Tahap Siap Cetak: hanya boleh periksa (preview di tab baru), belum boleh unduh. */}
+      {isReadyToPrint && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            onClick={() => {
+              window.open(`/preview/${artwork.id}?file=clean`, "_blank", "noopener,noreferrer");
+              setPreviewed(true);
+            }}
+            className="self-start rounded-xl border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper"
+          >
+            Periksa File (Preview)
+          </button>
+          <p className="font-mono text-[10px] uppercase tracking-wider text-inkfaint">
+            File untuk vendor baru bisa diunduh setelah Naik Cetak.
+          </p>
+        </div>
+      )}
 
-      {artwork.status === "printed" && (
+      {/* Unduhan untuk vendor: hanya muncul SETELAH Naik Cetak (sudah di-approve Purchasing). */}
+      {isPrinted && (
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="self-start rounded-xl border border-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-ink hover:bg-ink hover:text-paper disabled:opacity-50"
+        >
+          {downloading ? "Membuka…" : "Unduh PDF Bersih (untuk Vendor)"}
+        </button>
+      )}
+
+      {isPrinted && (
         <button
           onClick={handleCetakApproval}
           disabled={printingSheet}
@@ -454,9 +486,28 @@ className="flex-shrink-0 whitespace-nowrap sm:whitespace-normal"
       )}
 
       {isReadyToPrint && (
+        <label className="flex items-start gap-2 text-xs text-ink">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            disabled={!previewed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Saya sudah memeriksa isi file di Preview dan menyatakan file ini benar serta siap
+            dikirim ke vendor cetak.
+            {!previewed && (
+              <span className="text-inkfaint"> (Buka &quot;Periksa File&quot; terlebih dahulu.)</span>
+            )}
+          </span>
+        </label>
+      )}
+
+      {isReadyToPrint && (
         <button
           onClick={handleNaikCetak}
-          disabled={busy}
+          disabled={busy || !previewed || !confirmed}
           className="rounded-xl bg-ink px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-paper hover:bg-proofdark disabled:opacity-50"
         >
           {busy ? "Memproses…" : "Naik Cetak"}

@@ -5,7 +5,6 @@ import { Artwork } from "@/lib/types";
 import ArtworkTicket from "./ArtworkTicket";
 import AdminArtworkControls from "./AdminArtworkControls";
 import HistorySearchBar from "./HistorySearchBar";
-import ArtworkPreviewModal from "./ArtworkPreviewModal";
 import { filterAndSortHistory } from "@/lib/historyFilter";
 
 const PAGE_SIZE = 4;
@@ -19,7 +18,6 @@ export default function ProductHistoryList({
 }) {
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState("");
-  const [preview, setPreview] = useState<Artwork | null>(null);
 
   // Cari + urutkan dari yang terbaru (file dobel/mirip: versi terbaru di atas).
   const sorted = useMemo(() => filterAndSortHistory(history, query), [history, query]);
@@ -34,10 +32,11 @@ export default function ProductHistoryList({
     setPage(0);
   }
 
-  // Klik pada tombol/link/input di dalam kartu tidak ikut membuka preview.
+  // Klik kartu membuka preview di tab baru. Klik pada tombol/link/input
+  // di dalam kartu tidak ikut membuka preview.
   function openPreview(e: React.MouseEvent<HTMLDivElement>, artwork: Artwork) {
     if ((e.target as HTMLElement).closest("button, a, input, textarea, select, label")) return;
-    setPreview(artwork);
+    window.open(`/preview/${artwork.id}`, "_blank", "noopener,noreferrer");
   }
 
   if (!history.length) {
@@ -63,7 +62,7 @@ export default function ProductHistoryList({
           <div key={artwork.id} className="flex flex-col gap-2">
             <div
               onClick={(e) => openPreview(e, artwork)}
-              title="Klik untuk melihat preview file"
+              title="Klik untuk melihat preview file di tab baru"
               className="cursor-pointer"
             >
               <ArtworkTicket artwork={artwork} />
@@ -94,8 +93,6 @@ export default function ProductHistoryList({
           </button>
         </div>
       )}
-
-      {preview && <ArtworkPreviewModal artwork={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
